@@ -1,3 +1,6 @@
+#modify nalang for frontend and backend, ung andito test gui kasi
+
+
 import cv2
 import pytesseract
 from pytesseract import Output
