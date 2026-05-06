@@ -179,7 +179,7 @@ function HomeContent() {
                 <div className="flex flex-col lg:flex-row gap-6">
                   {/* ===== LEFT COLUMN ===== */}
                   <div className="lg:w-2/5 flex-shrink-0 space-y-5">
-                    <ImagePreview image={image} isScanning={isScanning} scanProgress={scanProgress} />
+                    <ImagePreview image={image} isScanning={isScanning} />
 
                     {scanError && !isScanning && (
                       <motion.div
