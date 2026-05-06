@@ -226,7 +226,7 @@ export default function SignIn() {
         </div>
 
         {/* Footer Link */}
-        <motion.div
+        {/* <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.7 }}
@@ -236,7 +236,7 @@ export default function SignIn() {
             <ArrowLeft className="w-3.5 h-3.5" />
             Back to home
           </Link>
-        </motion.div>
+        </motion.div> */}
       </motion.div>
     </main>
   );
