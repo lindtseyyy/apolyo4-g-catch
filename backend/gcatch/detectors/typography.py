@@ -754,3 +754,274 @@ def _check_ref_single_row(boxes, heights, widths, baselines, gaps,
         'reasons': reasons,
         'proof_image': proof_img,
     }
+
+
+def analyze_date(image, output_path=None):
+    """Check a date-field crop for editing.
+
+    Designed for GCash date stamps in the format:
+        "Mon DD, YYYY H:MM AM"  (e.g. "Apr 21, 2026 11:24 PM")
+
+    Dates are mixed-content — letters, digits, punctuation — so natural
+    variance is higher than pure-digit fields. Calibrated from 9 real
+    receipts:
+      - Baseline: ≤ 4 px deviation (comma sits higher, descenders vary)
+      - Height:   ≤ 30 % within non-punctuation characters
+      - Width:    ≤ 70 % (letters vary more than digits)
+      - Spaces:   6-11 px between date components
+
+    Punctuation (comma, colon) is excluded from baseline/height checks
+    since it is naturally much smaller than letters and digits.
+
+    Args:
+        image: File path (str) or in-memory BGR numpy array.
+        output_path: Optional path to save the annotated proof image.
+
+    Returns:
+        dict with keys: verdict, score, reasons, proof_image.
+    """
+    if isinstance(image, str):
+        img = cv2.imread(image)
+        if img is None:
+            raise ValueError(f"Could not read image: {image}")
+    else:
+        img = image.copy()
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    boxes = sorted(
+        [(x, y, w, h) for c in contours
+         for x, y, w, h in [cv2.boundingRect(c)] if h > 4 and w > 2],
+        key=lambda b: b[0]
+    )
+
+    proof_img = img.copy()
+
+    if len(boxes) < 6:
+        return {
+            'verdict': 'INCONCLUSIVE',
+            'score': 0,
+            'reasons': ['Too few characters in date field'],
+            'proof_image': proof_img,
+        }
+
+    heights = np.array([b[3] for b in boxes], dtype=float)
+    widths = np.array([b[2] for b in boxes], dtype=float)
+    baselines = np.array([b[1] + b[3] for b in boxes], dtype=float)
+
+    median_h = np.median(heights)
+
+    # Separate punctuation (comma, colon — much shorter than letters/digits)
+    is_punct = heights < median_h * 0.5
+    is_char = ~is_punct
+
+    char_indices = np.where(is_char)[0]
+    punct_indices = np.where(is_punct)[0]
+
+    if len(char_indices) < 4:
+        return {
+            'verdict': 'INCONCLUSIVE',
+            'score': 0,
+            'reasons': ['Too few non-punctuation characters in date'],
+            'proof_image': proof_img,
+        }
+
+    char_heights = heights[char_indices]
+    char_widths = widths[char_indices]
+    char_bases = baselines[char_indices]
+    median_char_h = np.median(char_heights)
+    median_char_w = np.median(char_widths)
+
+    # Multi-line detection on character boxes only
+    base_range = float(np.max(char_bases) - np.min(char_bases))
+    multi_line = base_range > median_char_h * 0.8 and len(char_indices) >= 8
+
+    if multi_line:
+        return _check_date_rows(
+            boxes, char_indices, punct_indices, proof_img, median_char_h, output_path
+        )
+
+    return _check_date_single_row(
+        boxes, char_indices, punct_indices, char_heights, char_widths,
+        char_bases, median_char_h, median_char_w, proof_img, output_path,
+    )
+
+
+def _check_date_rows(boxes, char_indices, punct_indices, proof_img,
+                     median_h, output_path):
+    """Check a multi-line date by splitting into rows."""
+    char_bases = np.array([boxes[i][1] + boxes[i][3] for i in char_indices], dtype=float)
+
+    rows = []
+    used = set()
+    for idx_i, i in enumerate(char_indices):
+        if i in used:
+            continue
+        bi = char_bases[idx_i]
+        row_chars = [i]
+        row_punct = []
+        used.add(i)
+        for idx_j, j in enumerate(char_indices):
+            if j in used:
+                continue
+            if abs(char_bases[idx_j] - bi) < median_h * 0.6:
+                row_chars.append(j)
+                used.add(j)
+        # Also grab nearby punctuation
+        for p in punct_indices:
+            if p in used:
+                continue
+            p_base = boxes[p][1] + boxes[p][3]
+            if abs(p_base - bi) < median_h * 0.8:
+                row_punct.append(p)
+                used.add(p)
+        row_chars = sorted(row_chars)
+        if len(row_chars) >= 2:
+            rows.append((row_chars, row_punct))
+
+    if not rows:
+        return {
+            'verdict': 'INCONCLUSIVE',
+            'score': 0,
+            'reasons': ['Could not parse multi-line date rows'],
+            'proof_image': proof_img,
+        }
+
+    total_flags = 0
+    all_reasons = []
+    for row_idx, (row_chars, row_punct) in enumerate(rows):
+        row_heights = np.array([boxes[i][3] for i in row_chars], dtype=float)
+        row_widths = np.array([boxes[i][2] for i in row_chars], dtype=float)
+        row_bases = np.array([boxes[i][1] + boxes[i][3] for i in row_chars], dtype=float)
+        result = _check_date_single_row(
+            boxes, row_chars, row_punct, row_heights, row_widths,
+            row_bases, np.median(row_heights), np.median(row_widths),
+            proof_img, None,
+        )
+        total_flags += result['score']
+        all_reasons.extend(f"Row {row_idx + 1}: {r}" for r in result['reasons'])
+
+    verdict = "FAIL: FAKE" if total_flags >= 2 else "PASS: REAL"
+    color = (0, 0, 255) if "FAIL" in verdict else (0, 255, 0)
+    fs = max(0.35, proof_img.shape[0] / 120)
+    cv2.putText(proof_img, f"Date: {verdict} ({total_flags}f/{len(rows)}r)",
+                (5, max(20, int(proof_img.shape[0] * 0.9))),
+                cv2.FONT_HERSHEY_SIMPLEX, fs, color, 2)
+    if output_path:
+        cv2.imwrite(str(output_path), proof_img)
+    return {
+        'verdict': verdict,
+        'score': total_flags,
+        'reasons': all_reasons,
+        'proof_image': proof_img,
+    }
+
+
+def _check_date_single_row(boxes, char_indices, punct_indices, char_heights,
+                           char_widths, char_bases, median_h, median_w,
+                           proof_img, output_path):
+    """Core single-row date check with calibrated thresholds."""
+    flags = 0
+    reasons = []
+
+    # --- Baseline (calibrated: real dates have ≤ 4 px deviation) ---
+    median_base = np.median(char_bases)
+    base_devs = np.abs(char_bases - median_base)
+    base_outliers_local = np.where(base_devs > 5.0)[0]
+
+    if len(base_outliers_local) > 0:
+        flags += 1
+        devs = base_devs[base_outliers_local]
+        reasons.append(
+            f"Date baseline shift: {len(base_outliers_local)} char(s) "
+            f"off by up to {devs.max():.0f}px from row median"
+        )
+
+    # Baseline line
+    base_y = int(median_base)
+    all_xs = [boxes[i][0] for i in char_indices] + [boxes[i][0] + boxes[i][2] for i in char_indices]
+    cv2.line(proof_img, (min(all_xs) - 3, base_y),
+             (max(all_xs) + 3, base_y), (0, 255, 255), 1)
+
+    # --- Height (calibrated: ≤ 30 % for chars, threshold at 35 %) ---
+    h_devs = np.abs(char_heights - median_h) / max(median_h, 1)
+    h_outliers_local = np.where(h_devs > 0.35)[0]
+    if len(h_outliers_local) > 0:
+        flags += 1
+        reasons.append(
+            f"Date height anomaly: {len(h_outliers_local)} char(s) "
+            f">35% from median ({median_h:.0f}px)"
+        )
+
+    # --- Width (calibrated: ≤ 70 %, flag at 75 %) ---
+    w_devs = np.abs(char_widths - median_w) / max(median_w, 1)
+    w_outliers_local = np.where(w_devs > 0.75)[0]
+    if len(w_outliers_local) > 0:
+        flags += 1
+        reasons.append(
+            f"Date width anomaly: {len(w_outliers_local)} char(s) "
+            f">75% from median ({median_w:.0f}px)"
+        )
+
+    # --- Spacing: flag only extreme gaps ---
+    all_indices = sorted(list(char_indices) + list(punct_indices))
+    if len(all_indices) >= 2:
+        gaps = []
+        gap_pairs = []
+        for k in range(len(all_indices) - 1):
+            a, b = all_indices[k], all_indices[k + 1]
+            gap = boxes[b][0] - (boxes[a][0] + boxes[a][2])
+            gaps.append(gap)
+            gap_pairs.append((a, b))
+
+        gaps = np.array(gaps)
+        # Spaces between components are 6-11 px on real receipts.
+        # Flag negative gaps (overlapping boxes) or gaps > 20 px.
+        bad = np.where((gaps < -2) | (gaps > 20))[0]
+        if len(bad) > 0:
+            flags += 1
+            details = ", ".join(
+                f"{gap_pairs[i][0]}-{gap_pairs[i][1]} ({gaps[i]:.0f}px)"
+                for i in bad
+            )
+            reasons.append(f"Date irregular spacing: {details}")
+
+    # --- Draw boxes ---
+    outlier_set = set()
+    for idx in base_outliers_local:
+        outlier_set.add(char_indices[idx])
+    for idx in h_outliers_local:
+        outlier_set.add(char_indices[idx])
+    for idx in w_outliers_local:
+        outlier_set.add(char_indices[idx])
+
+    for i, (x, y, w, h) in enumerate(boxes):
+        if i in punct_indices:
+            color = (255, 255, 0)  # yellow = punctuation, not checked
+        elif i in outlier_set:
+            color = (0, 0, 255)    # red = outlier
+        else:
+            color = (0, 255, 0)    # green = ok
+        cv2.rectangle(proof_img, (x, y), (x + w, y + h), color, 1)
+
+    # --- Verdict ---
+    verdict = "FAIL: FAKE" if flags >= 2 else "PASS: REAL"
+
+    color = (0, 0, 255) if "FAIL" in verdict else (0, 255, 0)
+    fs = max(0.35, proof_img.shape[0] / 120)
+    cv2.putText(proof_img, f"Date: {verdict} ({flags}f)",
+                (5, max(20, int(proof_img.shape[0] * 0.9))),
+                cv2.FONT_HERSHEY_SIMPLEX, fs, color, 2)
+
+    if output_path:
+        cv2.imwrite(str(output_path), proof_img)
+
+    return {
+        'verdict': verdict,
+        'score': flags,
+        'reasons': reasons,
+        'proof_image': proof_img,
+    }

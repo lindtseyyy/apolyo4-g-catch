@@ -10,6 +10,7 @@ import cv2
 
 from gcatch.detectors.typography import (
     analyze_amount_typography,
+    analyze_date,
     analyze_digit_typography,
     analyze_reference_number,
     analyze_typography,
@@ -23,7 +24,7 @@ FIELD_CHECKERS = {
     "amount": analyze_amount_typography,
     "total_amount": analyze_amount_typography,
     "reference_number": analyze_reference_number,
-    "date": analyze_typography,
+    "date": analyze_date,
 }
 
 
