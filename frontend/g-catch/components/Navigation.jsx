@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { LogOut, LogIn, UserPlus, Menu, X, Shield, Zap } from 'lucide-react';
@@ -8,6 +9,7 @@ import { useState } from 'react';
 
 export default function Navigation() {
   const { user, logout, loading } = useAuth();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -67,26 +69,30 @@ export default function Navigation() {
               </>
             ) : (
               <>
-                <Link href="/signin">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="flex items-center gap-2 text-[#8899b8] hover:text-[#f0f6ff] px-4 py-2 rounded-xl transition-all duration-200 text-sm font-medium"
-                  >
-                    <LogIn className="w-4 h-4" />
-                    Sign In
-                  </motion.button>
-                </Link>
-                <Link href="/signup">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="flex items-center gap-2 bg-gradient-to-r from-[#0066ff] to-[#00a8ff] hover:from-[#0052cc] hover:to-[#0090e0] text-white px-5 py-2 rounded-xl transition-all duration-200 text-sm font-semibold shadow-lg shadow-[#0066ff]/20 hover:shadow-[#0066ff]/35"
-                  >
-                    <Zap className="w-4 h-4" />
-                    Get Started
-                  </motion.button>
-                </Link>
+                {pathname !== '/signin' && (
+                  <Link href="/signin">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="flex items-center gap-2 text-[#8899b8] hover:text-[#f0f6ff] px-4 py-2 rounded-xl transition-all duration-200 text-sm font-medium"
+                    >
+                      <LogIn className="w-4 h-4" />
+                      Sign In
+                    </motion.button>
+                  </Link>
+                )}
+                {pathname !== '/signup' && (
+                  <Link href="/signup">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="flex items-center gap-2 bg-gradient-to-r from-[#0066ff] to-[#00a8ff] hover:from-[#0052cc] hover:to-[#0090e0] text-white px-5 py-2 rounded-xl transition-all duration-200 text-sm font-semibold shadow-lg shadow-[#0066ff]/20 hover:shadow-[#0066ff]/35"
+                    >
+                      <Zap className="w-4 h-4" />
+                      Get Started
+                    </motion.button>
+                  </Link>
+                )}
               </>
             )}
           </div>
@@ -135,18 +141,22 @@ export default function Navigation() {
                 </>
               ) : (
                 <>
-                  <Link href="/signin" onClick={() => setIsOpen(false)} className="block">
-                    <button className="w-full flex items-center gap-2 bg-[rgba(0,102,255,0.05)] hover:bg-[rgba(0,102,255,0.1)] border border-[rgba(0,102,255,0.12)] text-[#c8d4e8] px-4 py-2.5 rounded-xl transition justify-center text-sm font-medium">
-                      <LogIn className="w-4 h-4" />
-                      Sign In
-                    </button>
-                  </Link>
-                  <Link href="/signup" onClick={() => setIsOpen(false)} className="block">
-                    <button className="w-full flex items-center gap-2 bg-gradient-to-r from-[#0066ff] to-[#00a8ff] hover:from-[#0052cc] hover:to-[#0090e0] text-white px-4 py-2.5 rounded-xl transition text-sm font-semibold justify-center shadow-lg shadow-[#0066ff]/20">
-                      <Zap className="w-4 h-4" />
-                      Get Started
-                    </button>
-                  </Link>
+                  {pathname !== '/signin' && (
+                    <Link href="/signin" onClick={() => setIsOpen(false)} className="block">
+                      <button className="w-full flex items-center gap-2 bg-[rgba(0,102,255,0.05)] hover:bg-[rgba(0,102,255,0.1)] border border-[rgba(0,102,255,0.12)] text-[#c8d4e8] px-4 py-2.5 rounded-xl transition justify-center text-sm font-medium">
+                        <LogIn className="w-4 h-4" />
+                        Sign In
+                      </button>
+                    </Link>
+                  )}
+                  {pathname !== '/signup' && (
+                    <Link href="/signup" onClick={() => setIsOpen(false)} className="block">
+                      <button className="w-full flex items-center gap-2 bg-gradient-to-r from-[#0066ff] to-[#00a8ff] hover:from-[#0052cc] hover:to-[#0090e0] text-white px-4 py-2.5 rounded-xl transition text-sm font-semibold justify-center shadow-lg shadow-[#0066ff]/20">
+                        <Zap className="w-4 h-4" />
+                        Get Started
+                      </button>
+                    </Link>
+                  )}
                 </>
               )}
             </div>
