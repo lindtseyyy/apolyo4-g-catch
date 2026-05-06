@@ -303,13 +303,11 @@ function HomeContent() {
           </AnimatePresence>
         </div>
 
-        <div className="flex items-center justify-center gap-6 mt-6">
-          <div className="flex items-center gap-2 text-[#8899b8]/60">
-            <Fingerprint className="w-3.5 h-3.5" />
-            <span className="text-[10px] uppercase tracking-wider">Secured with Firestore</span>
-          </div>
-        </div>
       </motion.div>
+
+      <footer className="mt-8 text-center">
+        <p className="text-xs text-[#8899b8]/50">Developed by Apolyo 4 @ CodeKada Hackathon 2026</p>
+      </footer>
 
       <AnimatePresence>
         <ConfirmModal
