@@ -159,7 +159,7 @@ function ProfileContent({ user, isLoggingOut, handleLogout, copyUid, copied }) {
             transition={{ delay: 0.4 }}
             onClick={handleLogout}
             disabled={isLoggingOut}
-            className="w-full flex items-center justify-center gap-2 bg-[rgba(255,61,113,0.06)] hover:bg-[rgba(255,61,113,0.1)] border border-[rgba(255,61,113,0.15)] hover:border-[rgba(255,61,113,0.3)] text-[#ff3d71] font-semibold py-3 px-4 rounded-xl transition-all duration-200 disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 bg-[rgba(255,61,113,0.06)] hover:bg-[rgba(255,61,113,0.1)] border border-[rgba(255,61,113,0.15)] hover:border-[rgba(255,61,113,0.3)] text-[#ff3d71] font-semibold py-3 px-4 rounded-xl transition-all duration-200 disabled:opacity-50 cursor-pointer"
           >
             {isLoggingOut ? (
               <>

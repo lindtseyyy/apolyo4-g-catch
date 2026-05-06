@@ -51,7 +51,7 @@ export default function Navigation() {
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="flex items-center gap-2 bg-[rgba(0,102,255,0.08)] hover:bg-[rgba(0,102,255,0.15)] border border-[rgba(0,102,255,0.2)] text-[#0066ff] px-4 py-2 rounded-xl transition-all duration-200 text-sm font-medium"
+                    className="flex items-center gap-2 bg-[rgba(0,102,255,0.08)] hover:bg-[rgba(0,102,255,0.15)] border border-[rgba(0,102,255,0.2)] text-[#0066ff] px-4 py-2 rounded-xl transition-all duration-200 text-sm font-medium cursor-pointer"
                   >
                     <UserPlus className="w-4 h-4" />
                     Profile
@@ -61,7 +61,7 @@ export default function Navigation() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={handleLogout}
-                  className="flex items-center gap-2 bg-[rgba(255,61,113,0.08)] hover:bg-[rgba(255,61,113,0.15)] border border-[rgba(255,61,113,0.2)] text-[#ff3d71] px-4 py-2 rounded-xl transition-all duration-200 text-sm font-medium"
+                  className="flex items-center gap-2 bg-[rgba(255,61,113,0.08)] hover:bg-[rgba(255,61,113,0.15)] border border-[rgba(255,61,113,0.2)] text-[#ff3d71] px-4 py-2 rounded-xl transition-all duration-200 text-sm font-medium cursor-pointer"
                 >
                   <LogOut className="w-4 h-4" />
                   Sign Out
