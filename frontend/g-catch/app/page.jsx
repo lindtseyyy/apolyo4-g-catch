@@ -247,6 +247,9 @@ function HomeContent() {
                           forgedFieldCount={analysisResult?.forged_fields?.length || 0}
                         />
                         <MetricsGrid analysisResult={analysisResult} refExists={refExists} />
+                        <p className="text-[11px] text-[#8899b8]/60 text-center leading-relaxed px-2 italic">
+                          This tool is intended as a guidance only and should not be treated as conclusive proof that a transaction occurred. Always verify by checking your account or wallet to confirm whether the amount was actually paid.
+                        </p>
                         <TabBar tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
 
                         <div className="min-h-[250px]">

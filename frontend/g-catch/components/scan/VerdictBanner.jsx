@@ -30,13 +30,8 @@ export default function VerdictBanner({ result, forgedFieldCount }) {
           <h3 className={`text-xl font-bold ${
             result === 'authentic' ? 'text-[#00c853]' : 'text-[#ff3d71]'
           }`}>
-            {result === 'authentic' ? 'Verified Authentic' : 'FORGERY DETECTED'}
+            {result === 'authentic' ? 'No Anomalies Detected' : 'FORGERY DETECTED'}
           </h3>
-          <p className="text-xs text-[#8899b8] uppercase tracking-wider">
-            {result === 'authentic'
-              ? 'All forensic checks passed'
-              : `${forgedFieldCount} field(s) flagged`}
-          </p>
         </div>
       </div>
     </motion.div>

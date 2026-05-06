@@ -32,7 +32,7 @@ export default function ReferenceTab({ referenceNumber, refExists, result, confi
             </p>
             <p className="text-xs text-[#8899b8] mt-0.5">
               {refExists
-                ? 'This reference number has been previously registered in the cross-reference database.'
+                ? 'This reference number has already been registered. This may indicate a Replay Attack — where a legitimate receipt is reused to fraudulently claim the same transaction multiple times.'
                 : 'This reference number has not been seen before.'}
             </p>
           </div>
