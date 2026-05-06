@@ -1,3 +1,3 @@
-from gcatch.pipeline.receipt_scanner import scan_receipt, detect_amount_field_advanced, verify_receipt
-from gcatch.pipeline.receipt_cropper import process_receipt, extract_amount_field_from_receipt
+from gcatch.pipeline.receipt_scanner import scan_receipt, verify_receipt
+from gcatch.pipeline.receipt_cropper import process_receipt, extract_amount_field_from_receipt, extract_total_amount_field_from_receipt
 from gcatch.pipeline.screenshot_processor import ScreenshotProcessor

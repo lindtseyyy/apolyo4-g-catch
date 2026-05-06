@@ -423,9 +423,8 @@ def process_receipt(input_path, out_dir="processed_receipts"):
 
 
 def extract_amount_field_from_receipt(input_path, output_path=None):
-    """Extract just the amount field crop from a receipt image.
+    """Extract just the Amount field crop from a receipt image.
 
-    This is the key function for the typography verification pipeline.
     Returns the cropped amount image (BGR numpy array) and the OCR'd text.
     """
     full_cv = _load_image(input_path)
@@ -450,3 +449,33 @@ def extract_amount_field_from_receipt(input_path, output_path=None):
         cv2.imwrite(str(output_path), amount_crop)
 
     return amount_crop, amount_text
+
+
+def extract_total_amount_field_from_receipt(input_path, output_path=None):
+    """Extract just the Total Amount field crop from a receipt image.
+
+    Finds the "Total" label via OCR and crops the value next to it.
+    Returns the cropped total amount image (BGR numpy array) and the OCR'd text.
+    """
+    full_cv = _load_image(input_path)
+    card_cv, card_bbox = extract_white_card(full_cv)
+
+    card_pil = _cv2pil(card_cv)
+    ocr_data = _get_ocr_data(card_pil)
+    words = _words_with_boxes(ocr_data)
+
+    total_bbox, total_text = extract_total_amount(words, card_cv.shape)
+    if total_bbox is None:
+        return None, ""
+
+    card_x1, card_y1 = card_bbox[0], card_bbox[1]
+    bx1, by1, bx2, by2 = total_bbox
+    full_bbox = (bx1 + card_x1, by1 + card_y1, bx2 + card_x1, by2 + card_y1)
+
+    x1, y1, x2, y2 = full_bbox
+    total_crop = full_cv[y1:y2, x1:x2]
+
+    if output_path:
+        cv2.imwrite(str(output_path), total_crop)
+
+    return total_crop, total_text
