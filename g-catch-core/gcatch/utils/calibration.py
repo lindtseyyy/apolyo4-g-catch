@@ -21,6 +21,7 @@ def calibrate_ela_thresholds(
     ratio_margin=0.03,
     jpeg_quality=95,
     ela_alpha=8.0,
+    patch_size=16,
 ):
     """Batch-process real and AI-generated receipts to find optimal thresholds.
 
@@ -74,12 +75,14 @@ def calibrate_ela_thresholds(
             patch = detect_microscopic_noise(
                 item["ela_output"], variance_threshold=vt,
                 bright_threshold=bright_threshold,
+                patch_size=patch_size,
             )
             real_max_r = max(real_max_r, patch["noisy_patch_ratio"])
         for item in ai_ela_items:
             patch = detect_microscopic_noise(
                 item["ela_output"], variance_threshold=vt,
                 bright_threshold=bright_threshold,
+                patch_size=patch_size,
             )
             ai_min_r = min(ai_min_r, patch["noisy_patch_ratio"])
         gap = ai_min_r - real_max_r
@@ -87,8 +90,8 @@ def calibrate_ela_thresholds(
             best_gap = gap
             best_vt = vt
 
-    real_results = _score_ela_batch(real_ela_items, best_vt, bright_threshold)
-    ai_results = _score_ela_batch(ai_ela_items, best_vt, bright_threshold)
+    real_results = _score_ela_batch(real_ela_items, best_vt, bright_threshold, patch_size)
+    ai_results = _score_ela_batch(ai_ela_items, best_vt, bright_threshold, patch_size)
 
     max_real_ratio = max(r["noisy_patch_ratio"] for r in real_results)
 
@@ -97,6 +100,7 @@ def calibrate_ela_thresholds(
         "bright_threshold": bright_threshold,
         "noisy_patch_ratio": round(min(max_real_ratio + ratio_margin, 1.0), 4),
         "separation_gap": round(best_gap, 4),
+        "patch_size": patch_size,
     }
 
     real_ratios = [r["noisy_patch_ratio"] for r in real_results]
@@ -206,7 +210,7 @@ def _generate_ela_batch(image_dir, output_dir, label, jpeg_quality, ela_alpha):
     return items
 
 
-def _score_ela_batch(ela_items, variance_threshold, bright_threshold):
+def _score_ela_batch(ela_items, variance_threshold, bright_threshold, patch_size=16):
     results = []
     for item in ela_items:
         dirname = os.path.dirname(item["ela_output"])
@@ -218,6 +222,7 @@ def _score_ela_batch(ela_items, variance_threshold, bright_threshold):
             variance_threshold=variance_threshold,
             bright_threshold=bright_threshold,
             output_path=overlay_path,
+            patch_size=patch_size,
         )
         results.append({
             "filename": item["filename"],

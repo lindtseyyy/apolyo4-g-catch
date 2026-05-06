@@ -3,6 +3,8 @@ import numpy as np
 import os
 from skimage.measure import shannon_entropy
 
+DEFAULT_PATCH_SIZE = 16
+
 
 def run_ela(image_path, output_path, quality=90):
     """Run Error Level Analysis on an image.
@@ -35,13 +37,14 @@ def detect_microscopic_noise(
     bright_threshold=10,
     noisy_patch_ratio=0.2147,
     output_path=None,
+    patch_size=None,
 ):
     """Microscopic Patch-Based Variance Analysis for AI receipt detection.
 
-    Divides the ELA heatmap into 8x8 patches, isolates background (low-mean)
-    patches, and flags any with abnormally high pixel variance. AI-generated
-    receipts show microscopic grain in flat areas that legitimate screenshots
-    do not.
+    Divides the ELA heatmap into NxN patches (default 16×16), isolates
+    background (low-mean) patches, and flags any with abnormally high pixel
+    variance. AI-generated receipts show microscopic grain in flat areas
+    that legitimate screenshots do not.
 
     Args:
         ela_heatmap: ELA output — numpy array (BGR or grayscale) or file path.
@@ -52,12 +55,16 @@ def detect_microscopic_noise(
         noisy_patch_ratio: Fraction of background patches that must be noisy
             to trigger is_ai_generated.
         output_path: If set, saves the visual proof image to this path.
+        patch_size: Side length of the square analysis patch in pixels
+            (default: DEFAULT_PATCH_SIZE = 16).
 
     Returns:
         dict with keys: is_ai_generated, noisy_patch_ratio, total_patches,
         background_patches, flagged_patches, flagged_patch_coords,
         visual_proof, thresholds.
     """
+    if patch_size is None:
+        patch_size = DEFAULT_PATCH_SIZE
     if isinstance(ela_heatmap, str):
         ela_img = cv2.imread(ela_heatmap, cv2.IMREAD_UNCHANGED)
         if ela_img is None:
@@ -79,9 +86,10 @@ def detect_microscopic_noise(
         else:
             visual_proof = original_image.copy()
 
+    ps = patch_size
     h, w = gray.shape
-    h_trim = (h // 8) * 8
-    w_trim = (w // 8) * 8
+    h_trim = (h // ps) * ps
+    w_trim = (w // ps) * ps
     gray_trim = gray[:h_trim, :w_trim]
 
     if h_trim == 0 or w_trim == 0:
@@ -100,9 +108,9 @@ def detect_microscopic_noise(
             },
         }
 
-    n_rows = h_trim // 8
-    n_cols = w_trim // 8
-    patches = gray_trim.reshape(n_rows, 8, n_cols, 8).transpose(0, 2, 1, 3)
+    n_rows = h_trim // ps
+    n_cols = w_trim // ps
+    patches = gray_trim.reshape(n_rows, ps, n_cols, ps).transpose(0, 2, 1, 3)
 
     patch_means = patches.mean(axis=(2, 3))
     patch_stds = patches.std(axis=(2, 3))
@@ -119,7 +127,7 @@ def detect_microscopic_noise(
     is_ai_generated = bool(ratio > noisy_patch_ratio)
 
     flagged_rows, flagged_cols = np.where(noisy_mask)
-    flagged_coords = [(int(c) * 8, int(r) * 8)
+    flagged_coords = [(int(c) * ps, int(r) * ps)
                       for r, c in zip(flagged_rows, flagged_cols)]
 
     if visual_proof is not None:
@@ -128,7 +136,7 @@ def detect_microscopic_noise(
 
         overlay = visual_proof.copy()
         for x, y in flagged_coords:
-            cv2.rectangle(overlay, (x, y), (x + 8, y + 8), (0, 0, 255), -1)
+            cv2.rectangle(overlay, (x, y), (x + ps, y + ps), (0, 0, 255), -1)
 
         alpha = 0.35
         visual_proof = cv2.addWeighted(overlay, alpha, visual_proof, 1 - alpha, 0)
@@ -149,6 +157,7 @@ def detect_microscopic_noise(
             "variance_threshold": variance_threshold,
             "bright_threshold": bright_threshold,
             "noisy_patch_ratio": noisy_patch_ratio,
+            "patch_size": patch_size,
         },
     }
 
@@ -161,6 +170,7 @@ def calculate_noise_score(
     variance_threshold=0.5,
     bright_threshold=10,
     noisy_patch_ratio=0.2147,
+    patch_size=None,
 ):
     """Quantify noise in an ELA heatmap and detect AI-generated receipts.
 
@@ -190,6 +200,7 @@ def calculate_noise_score(
         variance_threshold=variance_threshold,
         bright_threshold=bright_threshold,
         noisy_patch_ratio=noisy_patch_ratio,
+        patch_size=patch_size,
     )
 
     noise_score = round(patch_result["noisy_patch_ratio"] * 100.0, 1)
@@ -212,5 +223,6 @@ def calculate_noise_score(
             "bright_threshold": bright_threshold,
             "noisy_patch_ratio": noisy_patch_ratio,
             "noise_floor": noise_floor,
+            "patch_size": patch_size if patch_size is not None else DEFAULT_PATCH_SIZE,
         },
     }
