@@ -27,18 +27,6 @@ export default function TypographyTab({ analysisResult }) {
               {analysisResult.typography_integrity_score.toFixed(1)}%
             </p>
           </div>
-          {analysisResult.penalty_summary?.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-[rgba(0,102,255,0.08)]">
-              <ul className="space-y-1">
-                {analysisResult.penalty_summary.map((penalty, i) => (
-                  <li key={i} className="text-xs text-[#ff3d71] flex items-start gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-[#ff3d71] mt-1.5 flex-shrink-0" />
-                    {penalty}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
       )}
 
