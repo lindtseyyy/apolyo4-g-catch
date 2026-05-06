@@ -80,7 +80,7 @@ function ProfileContent({ user, isLoggingOut, handleLogout, copyUid, copied }) {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-[#f0f6ff]">
-                {user.displayName || 'User'}
+                {user.displayName || user.email?.split('@')[0] || 'User'}
               </h1>
               <p className="text-[#8899b8] text-sm">Account Profile</p>
             </div>
@@ -100,27 +100,6 @@ function ProfileContent({ user, isLoggingOut, handleLogout, copyUid, copied }) {
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-[#8899b8] uppercase tracking-wider mb-0.5">Email Address</p>
                 <p className="text-[#f0f6ff] font-medium truncate">{user.email}</p>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="flex items-start gap-4 p-4 bg-[rgba(0,102,255,0.04)] border border-[rgba(0,102,255,0.1)] hover:border-[rgba(0,102,255,0.2)] rounded-xl transition-colors"
-            >
-              <div className="w-9 h-9 rounded-lg bg-[rgba(0,200,83,0.08)] flex items-center justify-center flex-shrink-0">
-                <Shield className="w-4 h-4 text-[#00c853]" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-[#8899b8] uppercase tracking-wider mb-0.5">Account Status</p>
-                <p className="text-[#f0f6ff] font-medium">
-                  {user.emailVerified ? (
-                    <span className="text-[#00c853]">✓ Email Verified</span>
-                  ) : (
-                    <span className="text-[#ffb800]">⚠ Email Not Verified</span>
-                  )}
-                </p>
               </div>
             </motion.div>
 
