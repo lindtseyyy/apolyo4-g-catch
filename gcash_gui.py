@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 try:
     from cropper import process_receipt
 except ImportError:
-    messagebox.showerror("Missing file", "gcash_cropper.py not found in the same folder.")
+    messagebox.showerror("Missing file", "cropper.py not found in the same folder.")
     sys.exit(1)
 
 OUT_DIR = "processed_receipts"

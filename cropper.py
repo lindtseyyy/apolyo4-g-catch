@@ -24,7 +24,7 @@ if platform.system() == "Windows":
     pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 
-# white card lang
+# white card detection
 
 def extract_white_card(cv_img) -> tuple:
     """find white card in image, return crop and bbox. fallback to full img if fails."""
