@@ -60,13 +60,7 @@ function HomeContent() {
     setActiveTab('ela');
 
     const progressInterval = setInterval(() => {
-      setScanProgress(prev => {
-        if (prev >= 90) {
-          clearInterval(progressInterval);
-          return 90;
-        }
-        return prev + Math.random() * 15;
-      });
+      setScanProgress(prev => Math.min(90, prev + Math.random() * 15));
     }, 300);
 
     try {
