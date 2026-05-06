@@ -101,6 +101,14 @@ class PipelineAnalysisResponse(BaseAnalysisResponse):
     typography_reasons: list[str] = Field(
         default_factory=list, description="All typography findings across fields."
     )
+    typography_integrity_score: float = Field(
+        default=100.0,
+        description="Penalty-based typography integrity score (0–100%).",
+    )
+    penalty_summary: list[str] = Field(
+        default_factory=list,
+        description="Human-readable list of penalty deductions applied.",
+    )
     combined_verdict: str = Field(
         description="Final verdict combining ELA and typography results."
     )

@@ -164,6 +164,8 @@ class AnalysisService:
             "gap_analysis": [],
             "symbol_check": None,
             "proof_image_base64": None,
+            "typography_integrity_score": result.get("typography_integrity_score", 100.0),
+            "penalty_summary": result.get("penalty_summary", []),
             "_fields": result["fields"],
             "_forged_fields": result["forged_fields"],
             "_proof_paths": result.get("proof_paths", {}),
@@ -193,6 +195,8 @@ class AnalysisService:
         fields = typography_result.pop("_fields", {})
         forged_fields = typography_result.pop("_forged_fields", [])
         proof_paths = typography_result.pop("_proof_paths", {})
+        typography_integrity_score = typography_result.get("typography_integrity_score", 100.0)
+        penalty_summary = typography_result.get("penalty_summary", [])
 
         duration_ms = round((time.perf_counter() - t0) * 1000, 1)
 
@@ -219,6 +223,8 @@ class AnalysisService:
             "fields": fields,
             "forged_fields": forged_fields,
             "typography_reasons": typography_result["reasons"],
+            "typography_integrity_score": typography_integrity_score,
+            "penalty_summary": penalty_summary,
             "combined_verdict": combined_verdict,
             "proof_image_base64": None,
             "_ela_overlay_path": ela_overlay_path,

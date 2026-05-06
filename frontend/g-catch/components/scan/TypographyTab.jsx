@@ -12,6 +12,33 @@ export default function TypographyTab({ analysisResult }) {
 
   return (
     <div className="space-y-4">
+      {/* Overall typography integrity */}
+      {analysisResult.typography_integrity_score !== undefined && (
+        <div className="p-4 bg-[rgba(0,102,255,0.04)] border border-[rgba(0,102,255,0.1)] rounded-xl">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-[#8899b8] uppercase tracking-wider">Typography Integrity</p>
+            <p className={`text-lg font-bold ${
+              analysisResult.typography_integrity_score >= 75 ? 'text-[#00c853]' : 'text-[#ff3d71]'
+            }`}>
+              {analysisResult.typography_integrity_score.toFixed(1)}%
+            </p>
+          </div>
+          {analysisResult.penalty_summary?.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-[rgba(0,102,255,0.08)]">
+              <p className="text-[10px] text-[#8899b8] uppercase tracking-wider mb-2">Penalties Applied</p>
+              <ul className="space-y-1">
+                {analysisResult.penalty_summary.map((penalty, i) => (
+                  <li key={i} className="text-xs text-[#ff3d71] flex items-start gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-[#ff3d71] mt-1.5 flex-shrink-0" />
+                    {penalty}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="space-y-3">
         {Object.entries(fields).map(([fieldName, fieldData]) => {
           const isForged = fieldData.verdict === 'forged' || analysisResult.forged_fields?.includes(fieldName);

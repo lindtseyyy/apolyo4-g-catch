@@ -28,6 +28,54 @@ FIELD_CHECKERS = {
     "date": analyze_date,
 }
 
+# Penalty points deducted from the base 100 % when a field is forged.
+# Missing / inconclusive fields are simply skipped (no penalty).
+FIELD_PENALTIES = {
+    "amount": 40,
+    "reference_number": 20,
+    "total_amount": 15,
+    "date": 10,
+    "name": 10,
+    "phone_number": 5,
+}
+
+
+def calculate_typography_integrity(field_results):
+    """Compute a penalty-based typography integrity score (0–100 %).
+
+    Every receipt starts at 100 %.  When the typography checker returns a
+    FORGED / FAIL verdict for a field a fixed penalty is subtracted.
+    Missing or INCONCLUSIVE fields are skipped — they neither help nor
+    hurt the score.
+
+    Returns:
+        dict with keys:
+          - typography_integrity_score  (float, 0–100)
+          - penalty_summary            (list[str])
+    """
+    score = 100.0
+    penalty_summary = []
+
+    for field_name, field_data in field_results.items():
+        verdict = field_data.get("verdict", "INCONCLUSIVE")
+
+        if verdict == "INCONCLUSIVE":
+            continue
+
+        if "FAIL" in verdict or verdict == "FORGED":
+            penalty = FIELD_PENALTIES.get(field_name, 0)
+            if penalty > 0:
+                score -= penalty
+                label = field_name.replace("_", " ").title()
+                penalty_summary.append(f"-{penalty}: {label} Forgery Detected")
+
+    final_score = round(max(0.0, score), 1)
+
+    return {
+        "typography_integrity_score": final_score,
+        "penalty_summary": penalty_summary,
+    }
+
 
 def verify_receipt(image_path, output_dir=None):
     """Full receipt verification pipeline — checks every field.
@@ -98,11 +146,15 @@ def verify_receipt(image_path, output_dir=None):
     else:
         combined_verdict = "FORGED"
 
+    integrity = calculate_typography_integrity(field_results)
+
     return {
         "verdict": combined_verdict,
         "fields": field_results,
         "forged_fields": forged_fields,
         "reasons": all_reasons,
+        "typography_integrity_score": integrity["typography_integrity_score"],
+        "penalty_summary": integrity["penalty_summary"],
         "proof_paths": proof_paths if output_dir else {},
     }
 
