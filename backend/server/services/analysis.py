@@ -1,7 +1,12 @@
 import time
 from typing import Any, Dict
 
-from gcatch.detectors.ela import run_ela, calculate_noise_score, detect_microscopic_noise
+from gcatch.detectors.ela import (
+    run_ela,
+    calculate_noise_score,
+    calculate_ela_integrity,
+    detect_microscopic_noise,
+)
 from gcatch.utils.image import convert_to_jpeg
 
 from server.config import ELA_THRESHOLDS
@@ -89,11 +94,17 @@ class AnalysisService:
 
         verdict = "FORGED" if noise_result["is_ai_suspected"] else "AUTHENTIC"
 
+        ela_integrity_score = calculate_ela_integrity(
+            noise_result["patch_stats"]["noisy_patch_ratio"],
+            noisy_patch_ratio,
+        )
+
         return {
             "verdict": verdict,
             "duration_ms": duration_ms,
             "is_ai_generated": noise_result["is_ai_suspected"],
             "noise_score": noise_result["noise_score"],
+            "ela_integrity_score": ela_integrity_score,
             "noisy_patch_ratio": noise_result["patch_stats"]["noisy_patch_ratio"],
             "flagged_patches": noise_result["patch_stats"]["flagged_patches"],
             "background_patches": noise_result["patch_stats"]["background_patches"],
@@ -204,6 +215,7 @@ class AnalysisService:
             "ela_verdict": ela_result["verdict"],
             "ela_is_ai_generated": ela_result["is_ai_generated"],
             "ela_noise_score": ela_result["noise_score"],
+            "ela_integrity_score": ela_result["ela_integrity_score"],
             "fields": fields,
             "forged_fields": forged_fields,
             "typography_reasons": typography_result["reasons"],

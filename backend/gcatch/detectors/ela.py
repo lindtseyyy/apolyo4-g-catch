@@ -162,6 +162,34 @@ def detect_microscopic_noise(
     }
 
 
+def calculate_ela_integrity(raw_score, threshold):
+    """Normalize raw noisy-patch ratio into a user-facing 0-100 % integrity score.
+
+    Dual-zone linear mapping anchored to the detection threshold:
+
+      * Clean Floor (raw_score <= 0.02)         → 100 % integrity
+      * Threshold   (raw_score == threshold)    →  75 % integrity  ("Passing Grade")
+      * Max Noise   (raw_score >= thresh * 2.5) →   0 % integrity
+
+    Zone A  [0.02 … threshold]      100 % → 75 %   (tolerates Messenger compression)
+    Zone B  (threshold … thresh*2.5)  75 % →  0 %   (forgery / artifact region)
+    """
+    CLEAN_FLOOR = 0.02
+    max_noise = threshold * 2.5
+
+    if raw_score <= CLEAN_FLOOR:
+        return 100.0
+    if raw_score >= max_noise:
+        return 0.0
+
+    if raw_score <= threshold:
+        integrity = 100.0 - (raw_score - CLEAN_FLOOR) / (threshold - CLEAN_FLOOR) * 25.0
+    else:
+        integrity = 75.0 - (raw_score - threshold) / (max_noise - threshold) * 75.0
+
+    return round(max(0.0, min(100.0, integrity)), 1)
+
+
 def calculate_noise_score(
     ela_image,
     mean_threshold=5.0,

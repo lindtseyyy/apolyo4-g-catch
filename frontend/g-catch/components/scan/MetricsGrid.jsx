@@ -9,9 +9,9 @@ export default function MetricsGrid({ analysisResult }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       <MetricCard
-        label="ELA Noise Score"
-        value={`${analysisResult.ela_noise_score?.toFixed(1)}/100`}
-        status={analysisResult.ela_noise_score < 50 ? 'good' : 'bad'}
+        label="ELA Integrity"
+        value={`${analysisResult.ela_integrity_score?.toFixed(1)}%`}
+        status={analysisResult.ela_integrity_score >= 75 ? 'good' : 'bad'}
       />
       <MetricCard
         label="AI Generation"

@@ -39,6 +39,9 @@ class ELAAnalysisResponse(BaseAnalysisResponse):
     analysis_type: str = "ela"
     is_ai_generated: bool = Field(description="Whether the receipt appears AI-generated.")
     noise_score: float = Field(description="Composite 0–100 noise score.")
+    ela_integrity_score: float = Field(
+        description="User-facing 0–100% integrity score derived from the noisy-patch ratio."
+    )
     noisy_patch_ratio: float = Field(description="Fraction of background patches flagged as noisy.")
     flagged_patches: int
     background_patches: int
@@ -84,6 +87,9 @@ class PipelineAnalysisResponse(BaseAnalysisResponse):
     ela_verdict: str = Field(description="ELA verdict: AUTHENTIC or FORGED.")
     ela_is_ai_generated: bool = Field(description="Whether ELA suspects AI generation.")
     ela_noise_score: float = Field(description="ELA composite noise score (0-100).")
+    ela_integrity_score: float = Field(
+        description="User-facing 0–100% ELA integrity score."
+    )
     fields: dict[str, FieldResult] = Field(
         default_factory=dict,
         description="Per-field typography results keyed by field name (name, phone_number, amount, total_amount, reference_number, date).",
