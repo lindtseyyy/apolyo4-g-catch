@@ -56,6 +56,42 @@ class HealthResponse(BaseModel):
     version: str = "0.1.0"
 
 
+class TypographyAnalysisResponse(BaseAnalysisResponse):
+    """Typography-specific analysis result for amount-field forensics."""
+
+    analysis_type: str = "typography"
+    fraud_score: float = Field(description="Weighted fraud score from multi-dimensional analysis.")
+    reasons: list[str] = Field(default_factory=list, description="List of findings/reasons for the verdict.")
+    char_count: int = Field(description="Number of character boxes detected.")
+    avg_aspect_ratio: Optional[float] = Field(default=None, description="Average w/h ratio of digit boxes.")
+    gap_analysis: list[float] = Field(default_factory=list, description="Kerning gaps between characters (px).")
+    symbol_check: Optional[dict] = Field(default=None, description="Currency symbol width check details.")
+
+
+class PipelineAnalysisResponse(BaseAnalysisResponse):
+    """Combined receipt verification pipeline result (ELA + typography)."""
+
+    analysis_type: str = "pipeline"
+    ela_verdict: str = Field(description="ELA verdict: AUTHENTIC or FORGED.")
+    ela_is_ai_generated: bool = Field(description="Whether ELA suspects AI generation.")
+    ela_noise_score: float = Field(description="ELA composite noise score (0-100).")
+    typography_verdict: Optional[str] = Field(
+        default=None, description="Typography verdict: PASS: REAL, FAIL: FAKE, or INCONCLUSIVE."
+    )
+    typography_fraud_score: Optional[float] = Field(
+        default=None, description="Typography weighted fraud score."
+    )
+    typography_reasons: list[str] = Field(
+        default_factory=list, description="Typography findings/reasons."
+    )
+    amount_text: Optional[str] = Field(
+        default=None, description="OCR-extracted amount text from the receipt."
+    )
+    combined_verdict: str = Field(
+        description="Final verdict combining ELA and typography results."
+    )
+
+
 class ErrorResponse(BaseModel):
     detail: str
     error_code: str

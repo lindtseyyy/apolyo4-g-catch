@@ -34,15 +34,8 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Register routers
-    from server.routers.ela import router as ela_router
-    from server.routers.typography import router as typography_router
-    from server.routers.alignment import router as alignment_router
     from server.routers.pipeline import router as pipeline_router
 
-    app.include_router(ela_router)
-    app.include_router(typography_router)
-    app.include_router(alignment_router)
     app.include_router(pipeline_router)
 
     @app.get(

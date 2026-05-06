@@ -7,6 +7,7 @@ Usage:
     python -m gcatch.cli scan-receipt IMAGE [--output OUTPUT]
     python -m gcatch.cli calibrate --real DIR --ai DIR [--output DIR]
     python -m gcatch.cli process-screenshot IMAGE [--output DIR]
+    python -m gcatch.cli verify IMAGE [--output DIR]
 """
 
 import argparse
@@ -104,6 +105,32 @@ def cmd_process_screenshot(args):
         print("Processing failed.")
 
 
+def cmd_verify(args):
+    from gcatch.pipeline.receipt_scanner import verify_receipt
+
+    output = args.output or None
+    result = verify_receipt(args.image, output_dir=output)
+
+    print(f"\n{'='*50}")
+    print(f"  Receipt Verification")
+    print(f"  Image: {args.image}")
+    print(f"{'='*50}")
+    print(f"  Amount text:  {result['amount_text'] or 'NOT FOUND'}")
+    print(f"  Verdict:      {result['verdict']}")
+    print(f"  Score:        {result['score']:.0f}")
+
+    if result['reasons']:
+        print(f"\n  Findings:")
+        for r in result['reasons']:
+            print(f"    - {r}")
+
+    if result['amount_crop_path']:
+        print(f"\n  Amount crop:  {result['amount_crop_path']}")
+    if result['proof_path']:
+        print(f"  Proof image:  {result['proof_path']}")
+    print()
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="G-Catch Receipt Forensics Toolkit",
@@ -143,6 +170,11 @@ def main():
     p_ss.add_argument("image", help="Path to screenshot/receipt image")
     p_ss.add_argument("--output", "-o", help="Output directory")
     p_ss.set_defaults(func=cmd_process_screenshot)
+
+    p_verify = sub.add_parser("verify", help="Full receipt verification (amount extraction + typography)")
+    p_verify.add_argument("image", help="Path to receipt image")
+    p_verify.add_argument("--output", "-o", help="Output directory for crops and proof images")
+    p_verify.set_defaults(func=cmd_verify)
 
     args = parser.parse_args()
     args.func(args)

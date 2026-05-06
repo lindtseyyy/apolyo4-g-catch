@@ -120,5 +120,105 @@ class AnalysisService:
         }
 
 
-# Register ELA so it shows up in available_analyzers()
-AnalysisService.register("ela")(AnalysisService.run_ela_analysis)
+    @staticmethod
+    def run_typography_analysis(file_path: str) -> Dict[str, Any]:
+        """Run typography forensics on a receipt image.
+
+        Extracts the amount field and runs advanced multi-dimensional
+        typography analysis (character consistency, kerning gaps, symbol
+        width check, weighted scoring).
+
+        Returns:
+            Dict ready to pass to TypographyAnalysisResponse(**result).
+        """
+        t0 = time.perf_counter()
+
+        from gcatch.pipeline.receipt_scanner import verify_receipt
+
+        result = verify_receipt(file_path)
+
+        duration_ms = round((time.perf_counter() - t0) * 1000, 1)
+
+        typography_result = result.get("typography_result") or {}
+
+        return {
+            "verdict": result["verdict"],
+            "duration_ms": duration_ms,
+            "fraud_score": result["score"],
+            "reasons": result["reasons"],
+            "char_count": typography_result.get("char_count", 0)
+            if typography_result
+            else 0,
+            "avg_aspect_ratio": typography_result.get("avg_aspect_ratio")
+            if typography_result
+            else None,
+            "gap_analysis": typography_result.get("gap_analysis", [])
+            if typography_result
+            else [],
+            "symbol_check": typography_result.get("symbol_check")
+            if typography_result
+            else None,
+            "proof_image_base64": None,
+            "_amount_crop_path": result.get("amount_crop_path"),
+            "_proof_path": result.get("proof_path"),
+        }
+
+    @staticmethod
+    def run_pipeline_analysis(file_path: str) -> Dict[str, Any]:
+        """Run combined ELA + typography pipeline on a receipt image.
+
+        Steps:
+          1. Run ELA analysis (noise detection).
+          2. Run typography analysis on the extracted amount field.
+          3. Combine verdicts.
+
+        Returns:
+            Dict ready to pass to PipelineAnalysisResponse(**result).
+        """
+        t0 = time.perf_counter()
+
+        # Step 1: ELA
+        ela_result = AnalysisService.run_ela_analysis(file_path)
+        ela_overlay_path = ela_result.pop("_overlay_path", None)
+        ela_output_path = ela_result.pop("_ela_output", None)
+
+        # Step 2: Typography on amount field
+        typography_result = AnalysisService.run_typography_analysis(file_path)
+        amount_crop_path = typography_result.pop("_amount_crop_path", None)
+        proof_path = typography_result.pop("_proof_path", None)
+
+        duration_ms = round((time.perf_counter() - t0) * 1000, 1)
+
+        # Step 3: Combined verdict
+        ela_forged = ela_result["verdict"] == "FORGED"
+        typography_forged = "FAIL" in (typography_result["verdict"] or "")
+        typography_inconclusive = typography_result["verdict"] == "INCONCLUSIVE"
+
+        if ela_forged or typography_forged:
+            combined_verdict = "FORGED"
+        elif typography_inconclusive and not ela_forged:
+            combined_verdict = "INCONCLUSIVE"
+        else:
+            combined_verdict = "AUTHENTIC"
+
+        return {
+            "analysis_type": "pipeline",
+            "verdict": combined_verdict,
+            "duration_ms": duration_ms,
+            "ela_verdict": ela_result["verdict"],
+            "ela_is_ai_generated": ela_result["is_ai_generated"],
+            "ela_noise_score": ela_result["noise_score"],
+            "typography_verdict": typography_result["verdict"],
+            "typography_fraud_score": typography_result["fraud_score"],
+            "typography_reasons": typography_result["reasons"],
+            "amount_text": None,  # filled by router if available
+            "combined_verdict": combined_verdict,
+            "proof_image_base64": None,
+            "_ela_overlay_path": ela_overlay_path,
+            "_ela_output_path": ela_output_path,
+            "_amount_crop_path": amount_crop_path,
+            "_typography_proof_path": proof_path,
+        }
+
+
+AnalysisService.register("pipeline")(AnalysisService.run_pipeline_analysis)

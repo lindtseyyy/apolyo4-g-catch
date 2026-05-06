@@ -408,3 +408,69 @@ def detect_amount_field_advanced(image_path, output_dir="output"):
     print(f"Average aspect ratio: {forensics_result['avg_aspect_ratio']:.2f}")
 
     return True, forensics_result['verdict'], result_path, amount_crop
+
+
+def verify_receipt(image_path, output_dir=None):
+    """Full receipt verification pipeline.
+
+    Chains amount-field extraction with typography forensics to produce a
+    tamper-detection verdict. This is the primary entry point for receipt
+    verification.
+
+    Steps:
+        1. Extract the amount field from the receipt image.
+        2. Run advanced amount typography analysis on the crop.
+        3. Return a combined result with extraction and analysis details.
+
+    Args:
+        image_path: Path to the receipt image.
+        output_dir: Optional directory for saving intermediate outputs
+            (amount crop, proof image). If None, no files are written.
+
+    Returns:
+        dict with keys:
+            - verdict: 'PASS: REAL' or 'FAIL: FAKE' or 'INCONCLUSIVE'
+            - score: numeric fraud score
+            - reasons: list of reason strings from typography analysis
+            - amount_text: OCR'd amount string (or None)
+            - amount_crop_path: path to saved amount crop (or None)
+            - proof_path: path to saved proof image (or None)
+            - typography_result: full result dict from analyze_amount_typography
+    """
+    from gcatch.pipeline.receipt_cropper import extract_amount_field_from_receipt
+    from gcatch.detectors.typography import analyze_amount_typography
+
+    amount_crop, amount_text = extract_amount_field_from_receipt(image_path)
+
+    if amount_crop is None:
+        return {
+            'verdict': 'INCONCLUSIVE',
+            'score': 0,
+            'reasons': ['Could not locate amount field in receipt'],
+            'amount_text': None,
+            'amount_crop_path': None,
+            'proof_path': None,
+            'typography_result': None,
+        }
+
+    amount_crop_path = None
+    proof_path = None
+
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+        stem = os.path.splitext(os.path.basename(image_path))[0]
+        amount_crop_path = os.path.join(output_dir, f"{stem}__amount.jpg")
+        cv2.imwrite(amount_crop_path, amount_crop)
+        proof_path = os.path.join(output_dir, f"{stem}__typography_proof.jpg")
+
+    typography_result = analyze_amount_typography(amount_crop, proof_path)
+
+    return {
+        'verdict': typography_result['verdict'],
+        'score': typography_result['score'],
+        'reasons': typography_result['reasons'],
+        'amount_text': amount_text,
+        'amount_crop_path': amount_crop_path,
+        'proof_path': proof_path,
+        'typography_result': typography_result,
+    }
