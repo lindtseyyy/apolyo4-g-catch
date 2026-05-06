@@ -1,26 +1,8 @@
 #!/usr/bin/env python3
 """
-GCash Receipt Cropper
-=====================
-Accepts a GCash receipt image, saves the raw upload, then uses OCR + OpenCV to
-crop and save each individual field as its own image:
-  - name
-  - phone_number
-  - amount
-  - total_amount
-  - reference_number
-  - date
-
-Works across the different GCash receipt layout variants (full-screen, cropped,
-two-line ref/date, etc.).
-
-Usage:
-    python gcash_cropper.py <input_image> [--out-dir <directory>]
-
-Outputs:
-    processed_receipts/full/    — full copy of the original upload
-    processed_receipts/cropped/ — one PNG per extracted field
-    <out-dir>/result.json   — JSON with the text values and crop file paths
+gcash receipt cropper - isolates the white card and runs ocr on it
+- extracts: name, phone, amount, total, ref#, date
+- outputs: full img, card crop, field crops, json results
 """
 
 import os
@@ -37,15 +19,59 @@ import numpy as np
 import pytesseract
 from PIL import Image
 
-# Windows-specific Tesseract path setup
 import platform
 if platform.system() == "Windows":
     pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
-# Helper functions for loading, OCR, and box handling
+
+# white card detection
+
+def extract_white_card(cv_img) -> tuple:
+    """find white card in image, return crop and bbox. fallback to full img if fails."""
+    h, w = cv_img.shape[:2]
+
+    # hsv thresholding for white
+    hsv = cv2.cvtColor(cv_img, cv2.COLOR_BGR2HSV)
+    lower_white = np.array([0,   0, 200], dtype=np.uint8)
+    upper_white = np.array([180, 40, 255], dtype=np.uint8)
+    mask = cv2.inRange(hsv, lower_white, upper_white)
+
+    # close gaps
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (30, 30))
+    closed = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+
+    # largest white region
+    contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    best_bbox = None
+    best_area = 0
+
+    for cnt in contours:
+        x, y, cw, ch = cv2.boundingRect(cnt)
+        area = cw * ch
+        if cw >= w * 0.50 and ch >= h * 0.15 and area > best_area:
+            best_bbox = (x, y, x + cw, y + ch)
+            best_area = area
+
+    if best_bbox is None:
+        print("[!] white card not found - using full img")
+        return cv_img.copy(), (0, 0, w, h)
+
+    x1, y1, x2, y2 = best_bbox
+
+    # padding to avoid clipping edges
+    x1 = max(0, x1 - 2)
+    y1 = max(0, y1 - 2)
+    x2 = min(w, x2 + 2)
+    y2 = min(h, y2 + 2)
+
+    card_crop = cv_img[y1:y2, x1:x2]
+    print(f"[✓] card detected: ({x1},{y1}) → ({x2},{y2}) [{x2-x1}×{y2-y1} px]")
+    return card_crop, (x1, y1, x2, y2)
+
+
+# helpers
 
 def load_image(path: str):
-    """Load with OpenCV + PIL (for Tesseract)."""
     cv_img = cv2.imread(path)
     if cv_img is None:
         raise FileNotFoundError(f"Cannot read image: {path}")
@@ -53,33 +79,36 @@ def load_image(path: str):
     return cv_img, pil_img
 
 
+def cv2pil(cv_img) -> Image.Image:
+    return Image.fromarray(cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB))
+
+
 def get_ocr_data(pil_img: Image.Image) -> dict:
-    """Run Tesseract and return the data dict."""
-    return pytesseract.image_to_data(pil_img, output_type=pytesseract.Output.DICT)
+    # psm 6 for receipt blocks
+    custom_config = r"--oem 3 --psm 6"
+    return pytesseract.image_to_data(
+        pil_img, output_type=pytesseract.Output.DICT, config=custom_config
+    )
 
 
 def words_with_boxes(ocr_data: dict) -> list[dict]:
-    """Return list of {text, x, y, w, h, conf} for non-empty tokens."""
     rows = []
     for i, text in enumerate(ocr_data["text"]):
         t = text.strip()
         if not t:
             continue
-        rows.append(
-            dict(
-                text=t,
-                x=ocr_data["left"][i],
-                y=ocr_data["top"][i],
-                w=ocr_data["width"][i],
-                h=ocr_data["height"][i],
-                conf=int(ocr_data["conf"][i]),
-            )
-        )
+        rows.append(dict(
+            text=t,
+            x=ocr_data["left"][i],
+            y=ocr_data["top"][i],
+            w=ocr_data["width"][i],
+            h=ocr_data["height"][i],
+            conf=int(ocr_data["conf"][i]),
+        ))
     return rows
 
 
-def find_word(words: list[dict], pattern: str, flags=re.IGNORECASE) -> dict | None:
-    """Return first word whose text matches `pattern`."""
+def find_word(words, pattern, flags=re.IGNORECASE):
     rx = re.compile(pattern, flags)
     for w in words:
         if rx.search(w["text"]):
@@ -87,396 +116,371 @@ def find_word(words: list[dict], pattern: str, flags=re.IGNORECASE) -> dict | No
     return None
 
 
-def find_words(words: list[dict], pattern: str, flags=re.IGNORECASE) -> list[dict]:
+def find_words(words, pattern, flags=re.IGNORECASE):
     rx = re.compile(pattern, flags)
     return [w for w in words if rx.search(w["text"])]
 
 
-def words_in_row(words: list[dict], anchor_y: int, tolerance: int = 20) -> list[dict]:
-    """Return words whose vertical centre is within `tolerance` px of anchor_y."""
-    return [
-        w for w in words
-        if abs((w["y"] + w["h"] // 2) - anchor_y) <= tolerance
-    ]
+def words_in_row(words, anchor_y, tolerance=20):
+    return [w for w in words if abs((w["y"] + w["h"] // 2) - anchor_y) <= tolerance]
 
 
-def words_below(words: list[dict], y_min: int, y_max: int) -> list[dict]:
+def words_below(words, y_min, y_max):
     return [w for w in words if y_min <= w["y"] <= y_max]
 
 
-def bbox_of(word_list: list[dict]) -> tuple[int, int, int, int]:
-    """Return (x, y, x2, y2) bounding box covering all words."""
-    xs = [w["x"] for w in word_list]
-    ys = [w["y"] for w in word_list]
+def bbox_of(word_list):
+    xs  = [w["x"]           for w in word_list]
+    ys  = [w["y"]           for w in word_list]
     x2s = [w["x"] + w["w"] for w in word_list]
     y2s = [w["y"] + w["h"] for w in word_list]
     return min(xs), min(ys), max(x2s), max(y2s)
 
 
-def pad_bbox(bbox: tuple, pad: int, img_shape: tuple) -> tuple:
-    """Expand bbox by `pad` pixels, clamped to image bounds."""
+def pad_bbox(bbox, pad, img_shape):
     h, w = img_shape[:2]
     x1, y1, x2, y2 = bbox
-    return (
-        max(0, x1 - pad),
-        max(0, y1 - pad),
-        min(w, x2 + pad),
-        min(h, y2 + pad),
-    )
+    return max(0, x1-pad), max(0, y1-pad), min(w, x2+pad), min(h, y2+pad)
 
 
-def crop_and_save(cv_img, bbox: tuple, path: str):
-    """Crop region from cv_img and save to path."""
+def crop_and_save(cv_img, bbox, path):
     x1, y1, x2, y2 = bbox
-    crop = cv_img[y1:y2, x1:x2]
-    cv2.imwrite(path, crop)
+    ext = Path(path).suffix.lower()
+    if ext in (".jpg", ".jpeg"):
+        cv2.imwrite(path, cv_img[y1:y2, x1:x2], [cv2.IMWRITE_JPEG_QUALITY, 100])
+    else:
+        cv2.imwrite(path, cv_img[y1:y2, x1:x2])
     return path
 
 
-def joined_text(word_list: list[dict]) -> str:
+def joined_text(word_list):
     return " ".join(w["text"] for w in sorted(word_list, key=lambda w: w["x"]))
 
-# Find the white receipt card area so later crops are relative to it
+# field extractors (coords relative to card crop)
 
-def find_receipt_card(cv_img) -> tuple[int, int, int, int]:
-    """
-    Detect the white receipt card area.
-    Returns (x1, y1, x2, y2) or the full image bounds on failure.
-    """
-    h, w = cv_img.shape[:2]
-    gray = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
-    _, mask = cv2.threshold(gray, 230, 255, cv2.THRESH_BINARY)
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    best = None
-    best_area = 0
-    for cnt in contours:
-        x, y, cw, ch = cv2.boundingRect(cnt)
-        area = cw * ch
-        # Must cover a reasonable chunk of the image width
-        if cw > w * 0.5 and ch > h * 0.2 and area > best_area:
-            best = (x, y, x + cw, y + ch)
-            best_area = area
-    return best if best else (0, 0, w, h)
-
-
-# Field extraction helpers for the different receipt values
-
-def extract_name(words: list[dict], img_shape, card_bbox: tuple) -> tuple[dict | None, str]:
-    """
-    Name is the bold text near the top of the receipt card, above the phone number.
-    It often looks like: FA••H MA•••••E O.  /  RI····D P.  /  DU··E H.
-    Strategy: find the phone number anchor (+63…) then grab text 1–3 rows above.
-    """
+def extract_name(words, img_shape):
     phone = find_word(words, r"\+63")
     if phone is None:
         return None, ""
-
-    phone_cy = phone["y"] + phone["h"] // 2
-    # Name is typically 30–120 px above the phone row
     name_candidates = [
         w for w in words
-        if (phone["y"] - 130) < w["y"] < (phone["y"] - 10)
-        and w["x"] > card_bbox[0]  # inside the card
+        if (phone["y"] - 130) < w["y"] < (phone["y"] - 5)
     ]
     if not name_candidates:
         return None, ""
-
-    # Group by row (within 15 px)
+    # group by row
     rows_by_y: dict[int, list] = {}
     for w in name_candidates:
         cy = w["y"] + w["h"] // 2
         placed = False
-        for key in rows_by_y:
+        for key in list(rows_by_y):
             if abs(cy - key) <= 15:
                 rows_by_y[key].append(w)
                 placed = True
                 break
         if not placed:
             rows_by_y[cy] = [w]
-
-    # Pick the row closest to the phone line (largest y)
     best_row = max(rows_by_y.keys())
     name_words = rows_by_y[best_row]
-    bbox = pad_bbox(bbox_of(name_words), 6, img_shape)
-    text = joined_text(name_words)
-    return bbox, text
+    bbox = pad_bbox(bbox_of(name_words), 2, img_shape)
+    return bbox, joined_text(name_words)
 
 
-def extract_phone(words: list[dict], img_shape) -> tuple[dict | None, str]:
-    """Phone number: +63 XXX XXX XXXX (may be split across tokens)."""
-    # Find the +63 token
+def extract_phone(words, img_shape):
     token = find_word(words, r"^\+63$")
     if token is None:
-        # Sometimes OCR reads it as +63XXXXXXXXXX together
         token = find_word(words, r"\+63\d")
         if token:
-            bbox = pad_bbox((token["x"], token["y"], token["x"] + token["w"], token["y"] + token["h"]), 6, img_shape)
+            bbox = pad_bbox(
+                (token["x"], token["y"], token["x"]+token["w"], token["y"]+token["h"]),
+                6, img_shape
+            )
             return bbox, token["text"]
         return None, ""
-
-    # Collect all tokens on the same row
     row = words_in_row(words, token["y"] + token["h"] // 2, tolerance=18)
-    # Filter only phone-like tokens
     phone_parts = [w for w in row if re.search(r"[\d\+\.\·•·]", w["text"])]
     if not phone_parts:
         phone_parts = [token]
-    bbox = pad_bbox(bbox_of(phone_parts), 6, img_shape)
-    text = joined_text(phone_parts)
-    return bbox, text
+    return pad_bbox(bbox_of(phone_parts), 2, img_shape), joined_text(phone_parts)
 
 
-def extract_amount(words: list[dict], img_shape) -> tuple[dict | None, str]:
-    """
-    'Amount' label row — grab the numeric value on the same row (right side).
-    Avoid the 'Total Amount Sent' row.
-    """
+def extract_amount(words, img_shape):
     amount_labels = find_words(words, r"^Amount$")
-    # We want the one that is NOT preceded by 'Total' nearby
     target_label = None
     for lbl in amount_labels:
-        # Check if 'Total' exists within 100px to the left on the same row
         row = words_in_row(words, lbl["y"] + lbl["h"] // 2, tolerance=20)
-        has_total = any(re.search(r"Total", w["text"], re.I) for w in row)
-        if not has_total:
+        if not any(re.search(r"Total", w["text"], re.I) for w in row):
             target_label = lbl
             break
-
     if target_label is None:
         return None, ""
-
     row = words_in_row(words, target_label["y"] + target_label["h"] // 2, tolerance=20)
-    # Amount value is to the right of the label
-    value_words = [w for w in row if w["x"] > target_label["x"] + target_label["w"]
-                   and re.search(r"[\d,\.]+", w["text"])]
+    value_words = [
+        w for w in row
+        if w["x"] > target_label["x"] + target_label["w"]
+        and re.search(r"[\d,\.]+", w["text"])
+    ]
     if not value_words:
         return None, ""
-
-    bbox = pad_bbox(bbox_of(value_words), 6, img_shape)
-    text = joined_text(value_words)
-    return bbox, text
+    return pad_bbox(bbox_of(value_words), 2, img_shape), joined_text(value_words)
 
 
-def extract_total_amount(words: list[dict], img_shape) -> tuple[dict | None, str]:
-    """
-    'Total Amount Sent' row — grab the ₱XXXXX value.
-    The peso sign may be read as P, ₱, or P4, etc.
-    """
+def extract_total_amount(words, img_shape):
     total_lbl = find_word(words, r"^Total$")
     if total_lbl is None:
         return None, ""
-
     total_cy = total_lbl["y"] + total_lbl["h"] // 2
-
-    # The value may span the same row or be 1 line below (wrap in narrow screens)
-    # Search ±40 px from the Total label centre
     candidate_words = [
         w for w in words
         if abs((w["y"] + w["h"] // 2) - total_cy) <= 40
-        and w["x"] > total_lbl["x"] + 50  # to the right
+        and w["x"] > total_lbl["x"] + 50
         and re.search(r"[\d,\.₱P]", w["text"])
     ]
     if not candidate_words:
-        # Try a wider band (some layouts wrap)
         candidate_words = [
             w for w in words
             if total_lbl["y"] <= w["y"] <= total_lbl["y"] + 80
             and re.search(r"[₱P]\d|^\d{2,}", w["text"])
         ]
-
     if not candidate_words:
         return None, ""
-
-    bbox = pad_bbox(bbox_of(candidate_words), 8, img_shape)
-    text = joined_text(candidate_words)
-    return bbox, text
+    return pad_bbox(bbox_of(candidate_words), 2, img_shape), joined_text(candidate_words)
 
 
-def extract_ref_and_date(words: list[dict], img_shape) -> tuple:
-    """
-    Reference number + date.  These may be on the same line or split across
-    two lines (narrow phone screenshots).
-    Returns ((ref_bbox, ref_text), (date_bbox, date_text))
-    """
+def extract_ref_and_date(words, img_shape, card_cv=None):
+    """extract ref# and date. handles single-line and two-line layouts. re-ocr the strip for reliability."""
     ref_label = find_word(words, r"^Ref$|^Ref\.$|^Ref\s*No")
     if ref_label is None:
         return (None, ""), (None, "")
 
-    ref_cy = ref_label["y"] + ref_label["h"] // 2
+    img_h, img_w = img_shape[:2]
 
-    # All words within ±30 px vertically of the Ref label
-    ref_row = words_in_row(words, ref_cy, tolerance=30)
+    # vertical band
+    y_top    = max(0, ref_label["y"] - 8)
+    y_bottom = min(img_h, ref_label["y"] + ref_label["h"] + 130)
 
-    # Reference number: one long digit OR multiple shorter tokens (e.g. "1039 879 183868")
+    # re-ocr the strip for better detection
+    strip_words    = None
+    strip_y_offset = 0
+
+    if card_cv is not None:
+        strip     = card_cv[y_top:y_bottom, :]
+        strip_pil = Image.fromarray(cv2.cvtColor(strip, cv2.COLOR_BGR2RGB))
+        sd = pytesseract.image_to_data(
+            strip_pil,
+            output_type=pytesseract.Output.DICT,
+            config="--oem 3 --psm 6",
+        )
+        strip_words = []
+        for i, text in enumerate(sd["text"]):
+            t = text.strip()
+            if not t:
+                continue
+            strip_words.append(dict(
+                text=t,
+                x=sd["left"][i],
+                y=sd["top"][i],
+                w=sd["width"][i],
+                h=sd["height"][i],
+            ))
+        strip_y_offset = y_top
+        ref_in_strip = find_word(strip_words, r"^Ref$|^Ref\.$|^Ref\s*No")
+        if ref_in_strip:
+            ref_label = ref_in_strip
+        band_words = strip_words
+    else:
+        band_words = [w for w in words if y_top <= w["y"] <= y_bottom]
+
+    # token classifiers
     def is_ref_token(w):
         t = w["text"]
-        if not re.search(r"^\d{3,}$", t):
+        if not re.fullmatch(r"\d{3,}", t):
             return False
-        # Exclude 4-digit year-like numbers (1900-2099)
-        if re.match(r"^(19|20)\d{2}$", t):
+        if re.fullmatch(r"(19|20)\d{2}", t):
             return False
         return True
 
-    ref_number_words = [
-        w for w in ref_row
-        if is_ref_token(w) and w["x"] > ref_label["x"]
-    ]
-    # Also check 1-2 rows below ref label (two-line layout)
-    if not ref_number_words:
-        look_y_max = ref_label["y"] + ref_label["h"] + 70
-        below_ref = words_below(words, ref_label["y"] + 5, look_y_max)
-        ref_number_words = [w for w in below_ref if is_ref_token(w) and w["x"] > ref_label["x"]]
-
-    # date parsing: look for month names / day / year rather than raw digit strings
     month_abbrs = r"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec"
-    # A date token is: month name, day number (1-2 digits optionally followed by comma),
-    # 4-digit year, time like 9:14, or AM/PM
     date_token_pattern = re.compile(
-        rf"^({month_abbrs}|\d{{1,2}},?$|\d{{4}}|\d{{1,2}}:\d{{2}}|AM|PM)$",
+        rf"^({month_abbrs}|\d{{1,2}},?|\d{{4}}|\d{{1,2}}:\d{{2}}|AM|PM)$",
         re.IGNORECASE,
     )
 
     def is_date_token(w):
-        return bool(date_token_pattern.match(w["text"])) and not re.match(r"^\d{6,}$", w["text"])
+        t = w["text"]
+        if re.fullmatch(r"\d{6,}", t):
+            return False
+        return bool(date_token_pattern.match(t))
 
-    date_words_same_row = [w for w in ref_row if is_date_token(w)]
+    # collect ref candidates to find column split
+    all_ref_candidates = [
+        w for w in band_words
+        if is_ref_token(w) and w["x"] > ref_label["x"]
+    ]
 
-    # If no date on same row (two-line layout), check 1–3 rows below ref label
-    if not date_words_same_row:
-        look_below_y_max = ref_label["y"] + ref_label["h"] + 70
-        below = words_below(words, ref_label["y"] + 5, look_below_y_max)
-        date_words_same_row = [w for w in below if is_date_token(w)]
+    col_split = (
+        max(w["x"] + w["w"] for w in all_ref_candidates) + 20
+        if all_ref_candidates else img_w // 2
+    )
 
-    ref_bbox, ref_text = None, ""
-    date_bbox, date_text = None, ""
+    left_words  = [w for w in band_words if (w["x"] + w["w"]) <= col_split]
+    right_words = [w for w in band_words if  w["x"]           >  col_split]
 
-    if ref_number_words:
-        ref_bbox = pad_bbox(bbox_of(ref_number_words), 6, img_shape)
-        ref_text = joined_text(ref_number_words)
+    ref_number_words = [
+        w for w in left_words
+        if is_ref_token(w) and w["x"] > ref_label["x"]
+    ]
+    date_words = [w for w in right_words if is_date_token(w)]
 
-    if date_words_same_row:
-        date_bbox = pad_bbox(bbox_of(date_words_same_row), 6, img_shape)
-        date_text = joined_text(date_words_same_row)
+    # fallback: use full band if column is empty
+    if not ref_number_words:
+        ref_number_words = [w for w in band_words if is_ref_token(w) and w["x"] > ref_label["x"]]
+    if not date_words:
+        date_words = [w for w in band_words if is_date_token(w)]
+
+    # sort for reading order
+    ref_number_words = sorted(ref_number_words, key=lambda w: (w["y"], w["x"]))
+    date_words       = sorted(date_words,       key=lambda w: (w["y"], w["x"]))
+
+    # add y-offset back to card coords
+    def make_bbox(wlist):
+        x1, y1, x2, y2 = bbox_of(wlist)
+        return (x1, y1 + strip_y_offset, x2, y2 + strip_y_offset)
+
+    ref_bbox, ref_text = (
+        pad_bbox(make_bbox(ref_number_words), 2, img_shape),
+        joined_text(ref_number_words),
+    ) if ref_number_words else (None, "")
+
+    date_bbox, date_text = (
+        pad_bbox(make_bbox(date_words), 2, img_shape),
+        joined_text(date_words),
+    ) if date_words else (None, "")
 
     return (ref_bbox, ref_text), (date_bbox, date_text)
 
 
-# Main pipeline for processing one receipt image
+# main pipeline
 
 def process_receipt(input_path: str, out_dir: str) -> dict:
-    out_dir = Path(out_dir)
-    raw_dir = out_dir / "full"
+    out_dir   = Path(out_dir)
+    raw_dir   = out_dir / "full"
+    card_dir  = out_dir / "card"      # ← new: isolated white panel
     fields_dir = out_dir / "cropped"
-    raw_dir.mkdir(parents=True, exist_ok=True)
-    fields_dir.mkdir(parents=True, exist_ok=True)
-
-    # save a raw copy of the upload before modifying anything
-    raw_dest = raw_dir / Path(input_path).name
-    shutil.copy2(input_path, raw_dest)
-    print(f"[✓] Raw receipt saved → {raw_dest}")
-
-    # load the image and run OCR to get word boxes
-    cv_img, pil_img = load_image(input_path)
-    ocr_data = get_ocr_data(pil_img)
-    words = words_with_boxes(ocr_data)
-    card_bbox = find_receipt_card(cv_img)
-    print(f"[✓] OCR complete — {len(words)} tokens detected")
-    print(f"[✓] Receipt card region: {card_bbox}")
+    for d in (raw_dir, card_dir, fields_dir):
+        d.mkdir(parents=True, exist_ok=True)
 
     stem = Path(input_path).stem
+
+    # save raw
+    raw_dest = raw_dir / Path(input_path).name
+    shutil.copy2(input_path, raw_dest)
+    print(f"[✓] raw saved → {raw_dest}")
+
+    # load image
+    full_cv, _ = load_image(input_path)
+
+    # isolate card
+    card_cv, card_bbox = extract_white_card(full_cv)
+    card_path = str(card_dir / f"{stem}__card.png")
+    cv2.imwrite(card_path, card_cv)
+    print(f"[✓] card saved → {card_path}")
+
+    # ocr the card
+    card_pil  = cv2pil(card_cv)
+    ocr_data  = get_ocr_data(card_pil)
+    words     = words_with_boxes(ocr_data)
+    print(f"[✓] ocr complete - {len(words)} tokens detected")
+
     result = {
-        "source_file": str(input_path),
-        "raw_copy": str(raw_dest),
+        "source_file":  str(input_path),
+        "raw_copy":     str(raw_dest),
+        "card_crop":    card_path,
+        "card_bbox":    card_bbox,
         "processed_at": datetime.now().isoformat(),
         "fields": {},
     }
 
+    src_ext = Path(input_path).suffix.lower() or ".jpg"
+    card_x1, card_y1 = card_bbox[0], card_bbox[1]
+
     def save_field(name: str, bbox, text: str):
         if bbox is None:
-            print(f"[!] Could not locate field: {name}")
+            print(f"[!] {name} not found")
             result["fields"][name] = {"text": text or "NOT_FOUND", "crop": None}
             return
-        crop_path = str(fields_dir / f"{stem}__{name}.png")
-        crop_and_save(cv_img, bbox, crop_path)
+        bx1, by1, bx2, by2 = bbox
+        full_bbox = (
+            bx1 + card_x1,
+            by1 + card_y1,
+            bx2 + card_x1,
+            by2 + card_y1,
+        )
+        crop_path = str(fields_dir / f"{stem}__{name}{src_ext}")
+        crop_and_save(full_cv, full_bbox, crop_path)
         print(f"[✓] {name:20s}: {text!r:35s} → {crop_path}")
         result["fields"][name] = {"text": text, "crop": crop_path}
 
-    # extract all known fields from OCR words
-    name_bbox, name_text = extract_name(words, cv_img.shape, card_bbox)
-    # Fallback: if name not found via OCR (blue-on-blue header), crop the region
-    # just above the "Amount" label as a best-effort visual crop
+    # extract fields
+    name_bbox, name_text = extract_name(words, card_cv.shape)
     if name_bbox is None:
         amount_lbl = find_word(words, r"^Amount$")
         if amount_lbl:
-            # Crop from top of card to just above Amount label
-            cx1 = card_bbox[0]
-            cy1 = card_bbox[1]
-            cx2 = card_bbox[2]
-            cy2 = amount_lbl["y"] - 10
-            if cy2 > cy1:
-                name_bbox = pad_bbox((cx1, cy1, cx2, cy2), 0, cv_img.shape)
-                name_text = "SEE_CROP"
+            cw = card_cv.shape[1]
+            name_bbox = pad_bbox((0, 0, cw, amount_lbl["y"] - 10), 0, card_cv.shape)
+            name_text = "SEE_CROP"
     save_field("name", name_bbox, name_text)
 
-    phone_bbox, phone_text = extract_phone(words, cv_img.shape)
-    # Fallback for phone: crop header region centred around y=600-700 if not found
+    phone_bbox, phone_text = extract_phone(words, card_cv.shape)
     if phone_bbox is None:
         amount_lbl = find_word(words, r"^Amount$")
         if amount_lbl:
-            mid_y = (card_bbox[1] + amount_lbl["y"]) // 2
-            phone_bbox = pad_bbox((card_bbox[0], mid_y - 50, card_bbox[2], mid_y + 50), 0, cv_img.shape)
+            cw = card_cv.shape[1]
+            mid_y = amount_lbl["y"] // 2
+            phone_bbox = pad_bbox((0, mid_y - 50, cw, mid_y + 50), 0, card_cv.shape)
             phone_text = "SEE_CROP"
     save_field("phone_number", phone_bbox, phone_text)
 
-    amount_bbox, amount_text = extract_amount(words, cv_img.shape)
+    amount_bbox, amount_text = extract_amount(words, card_cv.shape)
     save_field("amount", amount_bbox, amount_text)
 
-    total_bbox, total_text = extract_total_amount(words, cv_img.shape)
+    total_bbox, total_text = extract_total_amount(words, card_cv.shape)
     save_field("total_amount", total_bbox, total_text)
 
-    (ref_bbox, ref_text), (date_bbox, date_text) = extract_ref_and_date(words, cv_img.shape)
+    (ref_bbox, ref_text), (date_bbox, date_text) = extract_ref_and_date(words, card_cv.shape, card_cv=card_cv)
     save_field("reference_number", ref_bbox, ref_text)
     save_field("date", date_bbox, date_text)
 
-    # write the result metadata and crop paths to JSON
+    # write json
     json_path = out_dir / f"{stem}__result.json"
     with open(json_path, "w") as f:
         json.dump(result, f, indent=2)
-    print(f"[✓] JSON result → {json_path}")
+    print(f"[✓] json → {json_path}")
 
     return result
 
 
-# Helper for batch processing multiple receipt images
+# batch + cli
 
 def process_batch(input_paths: list[str], out_dir: str) -> list[dict]:
     results = []
     for p in input_paths:
-        print(f"\n{'='*60}")
-        print(f"Processing: {p}")
-        print('='*60)
+        print(f"\n{'='*60}\nProcessing: {p}\n{'='*60}")
         try:
-            r = process_receipt(p, out_dir)
-            results.append(r)
+            results.append(process_receipt(p, out_dir))
         except Exception as e:
             print(f"[ERROR] {p}: {e}")
     return results
 
 
-# Command-line interface setup
-
 def main():
     parser = argparse.ArgumentParser(
-        description="Crop individual fields from GCash receipt images."
+        description="Crop individual fields from GCash receipt images (white card only)."
     )
+    parser.add_argument("images", nargs="+", help="Path(s) to GCash receipt image(s)")
     parser.add_argument(
-        "images",
-        nargs="+",
-        help="Path(s) to GCash receipt image(s)",
-    )
-    parser.add_argument(
-        "--out-dir",
-        default="processed_receipts",
-        help="Directory to write outputs (default: ./processed_receipts)",
+        "--out-dir", default="processed_receipts",
+        help="Output directory (default: ./processed_receipts)"
     )
     args = parser.parse_args()
     process_batch(args.images, args.out_dir)
