@@ -1,0 +1,31 @@
+{
+  "source_file": "C:/Users/basil/OneDrive/Pictures/Screenshots/Screenshot 2026-05-06 140252.png",
+  "raw_copy": "processed_receipts\\full\\Screenshot 2026-05-06 140252.png",
+  "processed_at": "2026-05-06T14:05:04.394825",
+  "fields": {
+    "name": {
+      "text": "BEsccceeeE Ace J.",
+      "crop": "processed_receipts\\cropped\\Screenshot 2026-05-06 140252__name.png"
+    },
+    "phone_number": {
+      "text": "+63 926 699 2655",
+      "crop": "processed_receipts\\cropped\\Screenshot 2026-05-06 140252__phone_number.png"
+    },
+    "amount": {
+      "text": "900.00",
+      "crop": "processed_receipts\\cropped\\Screenshot 2026-05-06 140252__amount.png"
+    },
+    "total_amount": {
+      "text": "P900.00",
+      "crop": "processed_receipts\\cropped\\Screenshot 2026-05-06 140252__total_amount.png"
+    },
+    "reference_number": {
+      "text": "0036048111508",
+      "crop": "processed_receipts\\cropped\\Screenshot 2026-05-06 140252__reference_number.png"
+    },
+    "date": {
+      "text": "Dec 22, 2025 4:48 PM",
+      "crop": "processed_receipts\\cropped\\Screenshot 2026-05-06 140252__date.png"
+    }
+  }
+}

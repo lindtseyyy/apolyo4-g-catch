@@ -1,0 +1,38 @@
+{
+  "source_file": "C:/Users/basil/Downloads/Gemini_Generated_Image_swmjrvswmjrvswmj.png",
+  "raw_copy": "processed_receipts\\full\\Gemini_Generated_Image_swmjrvswmjrvswmj.png",
+  "card_crop": "processed_receipts\\card\\Gemini_Generated_Image_swmjrvswmjrvswmj__card.png",
+  "card_bbox": [
+    41,
+    39,
+    719,
+    1175
+  ],
+  "processed_at": "2026-05-06T14:51:58.438706",
+  "fields": {
+    "name": {
+      "text": "RAccH MAceeeW B.",
+      "crop": "processed_receipts\\cropped\\Gemini_Generated_Image_swmjrvswmjrvswmj__name.png"
+    },
+    "phone_number": {
+      "text": "+63 935 5210801",
+      "crop": "processed_receipts\\cropped\\Gemini_Generated_Image_swmjrvswmjrvswmj__phone_number.png"
+    },
+    "amount": {
+      "text": "100,000.00",
+      "crop": "processed_receipts\\cropped\\Gemini_Generated_Image_swmjrvswmjrvswmj__amount.png"
+    },
+    "total_amount": {
+      "text": "P100,000.00",
+      "crop": "processed_receipts\\cropped\\Gemini_Generated_Image_swmjrvswmjrvswmj__total_amount.png"
+    },
+    "reference_number": {
+      "text": "8040022341228",
+      "crop": "processed_receipts\\cropped\\Gemini_Generated_Image_swmjrvswmjrvswmj__reference_number.png"
+    },
+    "date": {
+      "text": "Apr 21, 2026 8:28 PM",
+      "crop": "processed_receipts\\cropped\\Gemini_Generated_Image_swmjrvswmjrvswmj__date.png"
+    }
+  }
+}

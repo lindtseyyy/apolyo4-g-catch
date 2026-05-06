@@ -1,0 +1,38 @@
+{
+  "source_file": "C:/Users/basil/Downloads/680261991_1697731861246008_3586671366765300365_n.jpg",
+  "raw_copy": "processed_receipts\\full\\680261991_1697731861246008_3586671366765300365_n.jpg",
+  "card_crop": "processed_receipts\\card\\680261991_1697731861246008_3586671366765300365_n__card.png",
+  "card_bbox": [
+    44,
+    317,
+    857,
+    1859
+  ],
+  "processed_at": "2026-05-06T14:15:12.750104",
+  "fields": {
+    "name": {
+      "text": "FAccH MAceoeeE O.",
+      "crop": "processed_receipts\\cropped\\680261991_1697731861246008_3586671366765300365_n__name.png"
+    },
+    "phone_number": {
+      "text": "+63 956 134 7878",
+      "crop": "processed_receipts\\cropped\\680261991_1697731861246008_3586671366765300365_n__phone_number.png"
+    },
+    "amount": {
+      "text": "290.00",
+      "crop": "processed_receipts\\cropped\\680261991_1697731861246008_3586671366765300365_n__amount.png"
+    },
+    "total_amount": {
+      "text": "290.00",
+      "crop": "processed_receipts\\cropped\\680261991_1697731861246008_3586671366765300365_n__total_amount.png"
+    },
+    "reference_number": {
+      "text": "1039 879 183868",
+      "crop": "processed_receipts\\cropped\\680261991_1697731861246008_3586671366765300365_n__reference_number.png"
+    },
+    "date": {
+      "text": "1039",
+      "crop": "processed_receipts\\cropped\\680261991_1697731861246008_3586671366765300365_n__date.png"
+    }
+  }
+}

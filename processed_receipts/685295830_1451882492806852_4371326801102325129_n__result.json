@@ -1,0 +1,38 @@
+{
+  "source_file": "C:/Users/basil/Downloads/685295830_1451882492806852_4371326801102325129_n.jpg",
+  "raw_copy": "processed_receipts\\full\\685295830_1451882492806852_4371326801102325129_n.jpg",
+  "card_crop": "processed_receipts\\card\\685295830_1451882492806852_4371326801102325129_n__card.png",
+  "card_bbox": [
+    35,
+    69,
+    687,
+    1192
+  ],
+  "processed_at": "2026-05-06T14:51:48.559774",
+  "fields": {
+    "name": {
+      "text": "RleeeeD P,",
+      "crop": "processed_receipts\\cropped\\685295830_1451882492806852_4371326801102325129_n__name.jpg"
+    },
+    "phone_number": {
+      "text": "+63 992 580 3918",
+      "crop": "processed_receipts\\cropped\\685295830_1451882492806852_4371326801102325129_n__phone_number.jpg"
+    },
+    "amount": {
+      "text": "2,200.00",
+      "crop": "processed_receipts\\cropped\\685295830_1451882492806852_4371326801102325129_n__amount.jpg"
+    },
+    "total_amount": {
+      "text": "P-2,200.00",
+      "crop": "processed_receipts\\cropped\\685295830_1451882492806852_4371326801102325129_n__total_amount.jpg"
+    },
+    "reference_number": {
+      "text": "3038 353633 433",
+      "crop": "processed_receipts\\cropped\\685295830_1451882492806852_4371326801102325129_n__reference_number.jpg"
+    },
+    "date": {
+      "text": "Mar 05, 2026 9:14 AM",
+      "crop": "processed_receipts\\cropped\\685295830_1451882492806852_4371326801102325129_n__date.jpg"
+    }
+  }
+}

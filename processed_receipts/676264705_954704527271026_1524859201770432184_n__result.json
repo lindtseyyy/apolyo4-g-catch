@@ -1,0 +1,38 @@
+{
+  "source_file": "C:/Users/basil/Downloads/676264705_954704527271026_1524859201770432184_n.jpg",
+  "raw_copy": "processed_receipts\\full\\676264705_954704527271026_1524859201770432184_n.jpg",
+  "card_crop": "processed_receipts\\card\\676264705_954704527271026_1524859201770432184_n__card.png",
+  "card_bbox": [
+    47,
+    231,
+    783,
+    1631
+  ],
+  "processed_at": "2026-05-06T14:51:53.157114",
+  "fields": {
+    "name": {
+      "text": "SEE_CROP",
+      "crop": "processed_receipts\\cropped\\676264705_954704527271026_1524859201770432184_n__name.jpg"
+    },
+    "phone_number": {
+      "text": "SEE_CROP",
+      "crop": "processed_receipts\\cropped\\676264705_954704527271026_1524859201770432184_n__phone_number.jpg"
+    },
+    "amount": {
+      "text": "200.00",
+      "crop": "processed_receipts\\cropped\\676264705_954704527271026_1524859201770432184_n__amount.jpg"
+    },
+    "total_amount": {
+      "text": "P200.00",
+      "crop": "processed_receipts\\cropped\\676264705_954704527271026_1524859201770432184_n__total_amount.jpg"
+    },
+    "reference_number": {
+      "text": "0040027019913",
+      "crop": "processed_receipts\\cropped\\676264705_954704527271026_1524859201770432184_n__reference_number.jpg"
+    },
+    "date": {
+      "text": "Apr 21, 2026 11:24 PM",
+      "crop": "processed_receipts\\cropped\\676264705_954704527271026_1524859201770432184_n__date.jpg"
+    }
+  }
+}

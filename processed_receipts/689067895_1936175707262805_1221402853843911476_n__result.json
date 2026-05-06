@@ -1,0 +1,38 @@
+{
+  "source_file": "C:/Users/basil/Downloads/689067895_1936175707262805_1221402853843911476_n.jpg",
+  "raw_copy": "processed_receipts\\full\\689067895_1936175707262805_1221402853843911476_n.jpg",
+  "card_crop": "processed_receipts\\card\\689067895_1936175707262805_1221402853843911476_n__card.png",
+  "card_bbox": [
+    47,
+    231,
+    783,
+    1631
+  ],
+  "processed_at": "2026-05-06T14:45:33.855085",
+  "fields": {
+    "name": {
+      "text": "JOeN CER A.",
+      "crop": "processed_receipts\\cropped\\689067895_1936175707262805_1221402853843911476_n__name.jpg"
+    },
+    "phone_number": {
+      "text": "+63 927 130 3114",
+      "crop": "processed_receipts\\cropped\\689067895_1936175707262805_1221402853843911476_n__phone_number.jpg"
+    },
+    "amount": {
+      "text": "110.00",
+      "crop": "processed_receipts\\cropped\\689067895_1936175707262805_1221402853843911476_n__amount.jpg"
+    },
+    "total_amount": {
+      "text": "P11 0.00",
+      "crop": "processed_receipts\\cropped\\689067895_1936175707262805_1221402853843911476_n__total_amount.jpg"
+    },
+    "reference_number": {
+      "text": "0033615384321",
+      "crop": "processed_receipts\\cropped\\689067895_1936175707262805_1221402853843911476_n__reference_number.jpg"
+    },
+    "date": {
+      "text": "Oct 14, 2025 11:20 AM",
+      "crop": "processed_receipts\\cropped\\689067895_1936175707262805_1221402853843911476_n__date.jpg"
+    }
+  }
+}

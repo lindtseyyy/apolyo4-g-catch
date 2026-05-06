@@ -1,0 +1,38 @@
+{
+  "source_file": "C:/Users/basil/Downloads/Gemini_Generated_Image_v23ebxv23ebxv23e.png",
+  "raw_copy": "processed_receipts\\full\\Gemini_Generated_Image_v23ebxv23ebxv23e.png",
+  "card_crop": "processed_receipts\\card\\Gemini_Generated_Image_v23ebxv23ebxv23e__card.png",
+  "card_bbox": [
+    33,
+    191,
+    668,
+    1401
+  ],
+  "processed_at": "2026-05-06T14:17:35.952112",
+  "fields": {
+    "name": {
+      "text": "GAcooeL RA-A B.",
+      "crop": "processed_receipts\\cropped\\Gemini_Generated_Image_v23ebxv23ebxv23e__name.png"
+    },
+    "phone_number": {
+      "text": "+63 945 856 3242",
+      "crop": "processed_receipts\\cropped\\Gemini_Generated_Image_v23ebxv23ebxv23e__phone_number.png"
+    },
+    "amount": {
+      "text": "50.00",
+      "crop": "processed_receipts\\cropped\\Gemini_Generated_Image_v23ebxv23ebxv23e__amount.png"
+    },
+    "total_amount": {
+      "text": "P50.00",
+      "crop": "processed_receipts\\cropped\\Gemini_Generated_Image_v23ebxv23ebxv23e__total_amount.png"
+    },
+    "reference_number": {
+      "text": "0037030926766",
+      "crop": "processed_receipts\\cropped\\Gemini_Generated_Image_v23ebxv23ebxv23e__reference_number.png"
+    },
+    "date": {
+      "text": "Jan 22, 2026 12:07 AM",
+      "crop": "processed_receipts\\cropped\\Gemini_Generated_Image_v23ebxv23ebxv23e__date.png"
+    }
+  }
+}

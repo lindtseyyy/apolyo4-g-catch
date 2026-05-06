@@ -1,0 +1,38 @@
+{
+  "source_file": "C:/Users/basil/Downloads/689486447_1679558343076372_970726774317675265_n.jpg",
+  "raw_copy": "processed_receipts\\full\\689486447_1679558343076372_970726774317675265_n.jpg",
+  "card_crop": "processed_receipts\\card\\689486447_1679558343076372_970726774317675265_n__card.png",
+  "card_bbox": [
+    47,
+    231,
+    783,
+    1631
+  ],
+  "processed_at": "2026-05-06T14:50:43.491196",
+  "fields": {
+    "name": {
+      "text": "BE coccccckE Dee J.",
+      "crop": "processed_receipts\\cropped\\689486447_1679558343076372_970726774317675265_n__name.jpg"
+    },
+    "phone_number": {
+      "text": "+63 926 699 2655",
+      "crop": "processed_receipts\\cropped\\689486447_1679558343076372_970726774317675265_n__phone_number.jpg"
+    },
+    "amount": {
+      "text": "900.00",
+      "crop": "processed_receipts\\cropped\\689486447_1679558343076372_970726774317675265_n__amount.jpg"
+    },
+    "total_amount": {
+      "text": "P900.00",
+      "crop": "processed_receipts\\cropped\\689486447_1679558343076372_970726774317675265_n__total_amount.jpg"
+    },
+    "reference_number": {
+      "text": "0036048111508",
+      "crop": "processed_receipts\\cropped\\689486447_1679558343076372_970726774317675265_n__reference_number.jpg"
+    },
+    "date": {
+      "text": "Dec 22, 2025 4:48 PM",
+      "crop": "processed_receipts\\cropped\\689486447_1679558343076372_970726774317675265_n__date.jpg"
+    }
+  }
+}

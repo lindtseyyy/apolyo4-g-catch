@@ -1,0 +1,38 @@
+{
+  "source_file": "C:/Users/basil/Downloads/4d23218a-2c65-4ef1-a05a-1d054ffcd28e.jpg",
+  "raw_copy": "processed_receipts\\full\\4d23218a-2c65-4ef1-a05a-1d054ffcd28e.jpg",
+  "card_crop": "processed_receipts\\card\\4d23218a-2c65-4ef1-a05a-1d054ffcd28e__card.png",
+  "card_bbox": [
+    47,
+    231,
+    783,
+    1631
+  ],
+  "processed_at": "2026-05-06T14:24:15.973299",
+  "fields": {
+    "name": {
+      "text": "GAccooL RA-A B.",
+      "crop": "processed_receipts\\cropped\\4d23218a-2c65-4ef1-a05a-1d054ffcd28e__name.png"
+    },
+    "phone_number": {
+      "text": "+63 945 856 3242",
+      "crop": "processed_receipts\\cropped\\4d23218a-2c65-4ef1-a05a-1d054ffcd28e__phone_number.png"
+    },
+    "amount": {
+      "text": "72.00",
+      "crop": "processed_receipts\\cropped\\4d23218a-2c65-4ef1-a05a-1d054ffcd28e__amount.png"
+    },
+    "total_amount": {
+      "text": "P72.00",
+      "crop": "processed_receipts\\cropped\\4d23218a-2c65-4ef1-a05a-1d054ffcd28e__total_amount.png"
+    },
+    "reference_number": {
+      "text": "0037030926766",
+      "crop": "processed_receipts\\cropped\\4d23218a-2c65-4ef1-a05a-1d054ffcd28e__reference_number.png"
+    },
+    "date": {
+      "text": "Jan 22, 2026 12:07 AM",
+      "crop": "processed_receipts\\cropped\\4d23218a-2c65-4ef1-a05a-1d054ffcd28e__date.png"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "source_file": "C:/Users/basil/Downloads/647cf7a1-1db4-4060-86e6-43e05339332d.jpg",
+  "raw_copy": "processed_receipts\\full\\647cf7a1-1db4-4060-86e6-43e05339332d.jpg",
+  "card_crop": "processed_receipts\\card\\647cf7a1-1db4-4060-86e6-43e05339332d__card.png",
+  "card_bbox": [
+    71,
+    71,
+    1101,
+    1802
+  ],
+  "processed_at": "2026-05-06T14:38:09.922540",
+  "fields": {
+    "name": {
+      "text": "RAcsH MAceeeW B.",
+      "crop": "processed_receipts\\cropped\\647cf7a1-1db4-4060-86e6-43e05339332d__name.jpg"
+    },
+    "phone_number": {
+      "text": "+63 935 521 0801",
+      "crop": "processed_receipts\\cropped\\647cf7a1-1db4-4060-86e6-43e05339332d__phone_number.jpg"
+    },
+    "amount": {
+      "text": "200.00",
+      "crop": "processed_receipts\\cropped\\647cf7a1-1db4-4060-86e6-43e05339332d__amount.jpg"
+    },
+    "total_amount": {
+      "text": "P200.00",
+      "crop": "processed_receipts\\cropped\\647cf7a1-1db4-4060-86e6-43e05339332d__total_amount.jpg"
+    },
+    "reference_number": {
+      "text": "NOT_FOUND",
+      "crop": null
+    },
+    "date": {
+      "text": "NOT_FOUND",
+      "crop": null
+    }
+  }
+}
