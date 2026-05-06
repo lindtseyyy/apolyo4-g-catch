@@ -212,7 +212,7 @@ function HomeContent() {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           onClick={() => fileInputRef.current?.click()}
-                          className="w-full text-sm font-semibold text-[#8899b8] hover:text-[#c8d4e8] bg-[rgba(0,102,255,0.04)] hover:bg-[rgba(0,102,255,0.08)] border border-[rgba(0,102,255,0.1)] hover:border-[rgba(0,102,255,0.2)] rounded-xl py-2.5 transition-all duration-200"
+                          className="w-full text-sm font-semibold text-[#8899b8] hover:text-[#c8d4e8] bg-[rgba(0,102,255,0.04)] hover:bg-[rgba(0,102,255,0.08)] border border-[rgba(0,102,255,0.1)] hover:border-[rgba(0,102,255,0.2)] rounded-xl py-2.5 transition-all duration-200 cursor-pointer"
                         >
                           Reselect Image
                         </motion.button>
@@ -220,7 +220,7 @@ function HomeContent() {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           onClick={handleScan}
-                          className="w-full bg-gradient-to-r from-[#0066ff] to-[#00a8ff] hover:from-[#0052cc] hover:to-[#0090e0] text-white font-bold py-3.5 px-4 rounded-xl transition-all duration-300 shadow-lg shadow-[#0066ff]/25 hover:shadow-[#0066ff]/40 active:scale-[0.98] flex items-center justify-center gap-2 group"
+                          className="w-full bg-gradient-to-r from-[#0066ff] to-[#00a8ff] hover:from-[#0052cc] hover:to-[#0090e0] text-white font-bold py-3.5 px-4 rounded-xl transition-all duration-300 shadow-lg shadow-[#0066ff]/25 hover:shadow-[#0066ff]/40 active:scale-[0.98] flex items-center justify-center gap-2 group cursor-pointer"
                         >
                           <ScanLine className="w-5 h-5 group-hover:animate-spin" />
                           Initiate Receipt Scan
