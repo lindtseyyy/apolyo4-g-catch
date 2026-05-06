@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { auth, getAuthErrorMessage } from '@/lib/firebase';
+import { signInWithEmail, signInWithGoogle } from '@/lib/authService';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -46,10 +45,10 @@ export default function SignIn() {
     }
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmail(email, password);
       router.push('/');
     } catch (err) {
-      setError(getAuthErrorMessage(err));
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -59,11 +58,10 @@ export default function SignIn() {
     setError('');
     setLoading(true);
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      await signInWithGoogle();
       router.push('/');
     } catch (err) {
-      setError(getAuthErrorMessage(err));
+      setError(err.message);
     } finally {
       setLoading(false);
     }

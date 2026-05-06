@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { auth, getAuthErrorMessage } from '@/lib/firebase';
+import { signUpWithEmail, signInWithGoogle } from '@/lib/authService';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -62,10 +61,10 @@ export default function SignUp() {
     if (!validateForm()) return;
     setLoading(true);
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      await signUpWithEmail(email, password);
       router.push('/');
     } catch (err) {
-      setError(getAuthErrorMessage(err));
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -75,11 +74,10 @@ export default function SignUp() {
     setError('');
     setLoading(true);
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      await signInWithGoogle();
       router.push('/');
     } catch (err) {
-      setError(getAuthErrorMessage(err));
+      setError(err.message);
     } finally {
       setLoading(false);
     }
