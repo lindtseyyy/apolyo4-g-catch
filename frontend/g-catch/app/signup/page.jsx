@@ -145,7 +145,7 @@ export default function SignUp() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="John Doe"
+                  placeholder="Enter full name"
                   className="w-full bg-[rgba(0,102,255,0.04)] border border-[rgba(0,102,255,0.12)] hover:border-[rgba(0,102,255,0.25)] rounded-xl pl-11 pr-4 py-3 text-[#f0f6ff] placeholder-[#8899b8]/50 transition-all"
                   required
                 />
@@ -164,7 +164,7 @@ export default function SignUp() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder="Enter email address"
                   className="w-full bg-[rgba(0,102,255,0.04)] border border-[rgba(0,102,255,0.12)] hover:border-[rgba(0,102,255,0.25)] rounded-xl pl-11 pr-4 py-3 text-[#f0f6ff] placeholder-[#8899b8]/50 transition-all"
                   required
                 />
@@ -183,7 +183,7 @@ export default function SignUp() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="Enter password"
                   className="w-full bg-[rgba(0,102,255,0.04)] border border-[rgba(0,102,255,0.12)] hover:border-[rgba(0,102,255,0.25)] rounded-xl pl-11 pr-11 py-3 text-[#f0f6ff] placeholder-[#8899b8]/50 transition-all"
                   required
                 />
@@ -209,7 +209,7 @@ export default function SignUp() {
                   type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="Confirm password"
                   className="w-full bg-[rgba(0,102,255,0.04)] border border-[rgba(0,102,255,0.12)] hover:border-[rgba(0,102,255,0.25)] rounded-xl pl-11 pr-11 py-3 text-[#f0f6ff] placeholder-[#8899b8]/50 transition-all"
                   required
                 />
