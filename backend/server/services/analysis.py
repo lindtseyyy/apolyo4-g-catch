@@ -122,11 +122,11 @@ class AnalysisService:
 
     @staticmethod
     def run_typography_analysis(file_path: str) -> Dict[str, Any]:
-        """Run typography forensics on a receipt image.
+        """Run per-field typography forensics on a receipt image.
 
-        Extracts the amount field and runs advanced multi-dimensional
-        typography analysis (character consistency, kerning gaps, symbol
-        width check, weighted scoring).
+        Extracts all recognizable fields and runs the appropriate typography
+        analysis on each crop (amount checker for ₱ fields, digit checker
+        for ref#/phone, general checker for name/date).
 
         Returns:
             Dict ready to pass to TypographyAnalysisResponse(**result).
@@ -139,28 +139,23 @@ class AnalysisService:
 
         duration_ms = round((time.perf_counter() - t0) * 1000, 1)
 
-        typography_result = result.get("typography_result") or {}
+        total_score = sum(
+            f["score"] for f in result["fields"].values()
+        )
 
         return {
             "verdict": result["verdict"],
             "duration_ms": duration_ms,
-            "fraud_score": result["score"],
+            "fraud_score": float(total_score),
             "reasons": result["reasons"],
-            "char_count": typography_result.get("char_count", 0)
-            if typography_result
-            else 0,
-            "avg_aspect_ratio": typography_result.get("avg_aspect_ratio")
-            if typography_result
-            else None,
-            "gap_analysis": typography_result.get("gap_analysis", [])
-            if typography_result
-            else [],
-            "symbol_check": typography_result.get("symbol_check")
-            if typography_result
-            else None,
+            "char_count": None,
+            "avg_aspect_ratio": None,
+            "gap_analysis": [],
+            "symbol_check": None,
             "proof_image_base64": None,
-            "_amount_crop_path": result.get("amount_crop_path"),
-            "_proof_path": result.get("proof_path"),
+            "_fields": result["fields"],
+            "_forged_fields": result["forged_fields"],
+            "_proof_paths": result.get("proof_paths", {}),
         }
 
     @staticmethod
@@ -182,16 +177,17 @@ class AnalysisService:
         ela_overlay_path = ela_result.pop("_overlay_path", None)
         ela_output_path = ela_result.pop("_ela_output", None)
 
-        # Step 2: Typography on amount field
+        # Step 2: Per-field typography
         typography_result = AnalysisService.run_typography_analysis(file_path)
-        amount_crop_path = typography_result.pop("_amount_crop_path", None)
-        proof_path = typography_result.pop("_proof_path", None)
+        fields = typography_result.pop("_fields", {})
+        forged_fields = typography_result.pop("_forged_fields", [])
+        proof_paths = typography_result.pop("_proof_paths", {})
 
         duration_ms = round((time.perf_counter() - t0) * 1000, 1)
 
         # Step 3: Combined verdict
         ela_forged = ela_result["verdict"] == "FORGED"
-        typography_forged = "FAIL" in (typography_result["verdict"] or "")
+        typography_forged = typography_result["verdict"] == "FORGED"
         typography_inconclusive = typography_result["verdict"] == "INCONCLUSIVE"
 
         if ela_forged or typography_forged:
@@ -208,16 +204,14 @@ class AnalysisService:
             "ela_verdict": ela_result["verdict"],
             "ela_is_ai_generated": ela_result["is_ai_generated"],
             "ela_noise_score": ela_result["noise_score"],
-            "typography_verdict": typography_result["verdict"],
-            "typography_fraud_score": typography_result["fraud_score"],
+            "fields": fields,
+            "forged_fields": forged_fields,
             "typography_reasons": typography_result["reasons"],
-            "amount_text": None,  # filled by router if available
             "combined_verdict": combined_verdict,
             "proof_image_base64": None,
             "_ela_overlay_path": ela_overlay_path,
             "_ela_output_path": ela_output_path,
-            "_amount_crop_path": amount_crop_path,
-            "_typography_proof_path": proof_path,
+            "_typography_proof_paths": proof_paths,
         }
 
 

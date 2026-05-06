@@ -38,16 +38,16 @@ async def analyze_receipt(
 
         ela_overlay = result.pop("_ela_overlay_path", None)
         ela_output = result.pop("_ela_output_path", None)
-        amount_crop = result.pop("_amount_crop_path", None)
-        typography_proof = result.pop("_typography_proof_path", None)
+        proof_paths = result.pop("_typography_proof_paths", {})
 
-        # Use typography proof as primary; fall back to ELA overlay
+        # Use first available typography proof; fall back to ELA overlay
+        first_proof = next(iter(proof_paths.values()), None) if proof_paths else None
         result["proof_image_base64"] = (
-            image_to_base64(typography_proof) or image_to_base64(ela_overlay)
+            image_to_base64(first_proof) or image_to_base64(ela_overlay)
         )
 
         background_tasks.add_task(
-            cleanup, saved_path, ela_overlay, ela_output, amount_crop, typography_proof
+            cleanup, saved_path, ela_overlay, ela_output, *proof_paths.values()
         )
 
         return result

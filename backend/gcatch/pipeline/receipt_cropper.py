@@ -479,3 +479,73 @@ def extract_total_amount_field_from_receipt(input_path, output_path=None):
         cv2.imwrite(str(output_path), total_crop)
 
     return total_crop, total_text
+
+
+def extract_all_field_crops(input_path):
+    """Extract all recognizable fields from a GCash receipt as in-memory crops.
+
+    Returns a dict mapping field_name → (crop_bgr_array, ocr_text). Fields
+    that cannot be located are omitted from the dict.
+
+    Fields extracted: name, phone_number, amount, total_amount,
+    reference_number, date.
+    """
+    full_cv = _load_image(input_path)
+    card_cv, card_bbox = extract_white_card(full_cv)
+
+    card_pil = _cv2pil(card_cv)
+    ocr_data = _get_ocr_data(card_pil)
+    words = _words_with_boxes(ocr_data)
+
+    card_x1, card_y1 = card_bbox[0], card_bbox[1]
+
+    def _crop_field(bbox):
+        """Convert card-relative bbox to full-image crop."""
+        if bbox is None:
+            return None
+        bx1, by1, bx2, by2 = bbox
+        fx1 = bx1 + card_x1
+        fy1 = by1 + card_y1
+        fx2 = bx2 + card_x1
+        fy2 = by2 + card_y1
+        return full_cv[fy1:fy2, fx1:fx2]
+
+    fields = {}
+
+    # Name
+    bbox, text = extract_name(words, card_cv.shape)
+    crop = _crop_field(bbox)
+    if crop is not None:
+        fields["name"] = (crop, text)
+
+    # Phone number
+    bbox, text = extract_phone(words, card_cv.shape)
+    crop = _crop_field(bbox)
+    if crop is not None:
+        fields["phone_number"] = (crop, text)
+
+    # Amount
+    bbox, text = extract_amount(words, card_cv.shape)
+    crop = _crop_field(bbox)
+    if crop is not None:
+        fields["amount"] = (crop, text)
+
+    # Total amount
+    bbox, text = extract_total_amount(words, card_cv.shape)
+    crop = _crop_field(bbox)
+    if crop is not None:
+        fields["total_amount"] = (crop, text)
+
+    # Reference number and date
+    (ref_bbox, ref_text), (date_bbox, date_text) = \
+        extract_ref_and_date(words, card_cv.shape, card_cv=card_cv)
+
+    ref_crop = _crop_field(ref_bbox)
+    if ref_crop is not None:
+        fields["reference_number"] = (ref_crop, ref_text)
+
+    date_crop = _crop_field(date_bbox)
+    if date_crop is not None:
+        fields["date"] = (date_crop, date_text)
+
+    return fields

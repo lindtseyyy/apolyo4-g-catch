@@ -427,3 +427,330 @@ def analyze_amount_typography(image, output_path=None):
         'symbol_check': symbol_check[1] if symbol_check else None,
         'proof_image': proof_img,
     }
+
+
+def analyze_digit_typography(image, output_path=None):
+    """Run typography forensics on a digit-only field (no currency symbol).
+
+    Designed for cropped reference numbers, phone numbers, and other
+    digit-string fields from GCash receipts. Uses the same statistical
+    inconsistency engine as analyze_amount_typography but treats all
+    characters as digits without a symbol-width check.
+
+    Args:
+        image: File path (str) or in-memory BGR numpy array.
+        output_path: Optional path to save the annotated proof image.
+
+    Returns:
+        dict with keys: verdict, score, reasons, stats, proof_image.
+    """
+    if isinstance(image, str):
+        img = cv2.imread(image)
+        if img is None:
+            raise ValueError(f"Could not read image: {image}")
+    else:
+        img = image.copy()
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    bounding_boxes = sorted(
+        [(x, y, w, h) for c in contours
+         for x, y, w, h in [cv2.boundingRect(c)] if h > 15 and w > 5],
+        key=lambda b: b[0]
+    )
+
+    if len(bounding_boxes) < 2:
+        return {
+            'verdict': 'INCONCLUSIVE',
+            'score': 0,
+            'reasons': ['Too few characters detected in field'],
+            'stats': {},
+            'proof_image': img,
+        }
+
+    stats = analyze_inconsistencies(bounding_boxes)
+    verdict, score, reasons = compute_verdict(stats, symbol_check=None)
+
+    proof_img = img.copy()
+
+    for x, y, w, h in bounding_boxes:
+        cv2.rectangle(proof_img, (x, y), (x + w, y + h), (255, 0, 0), 1)
+
+    color = (0, 0, 255) if "FAIL" in verdict else (0, 255, 0)
+    font_scale = max(0.35, img.shape[0] / 120)
+    cv2.putText(proof_img, f"{verdict} (score: {score:.0f})",
+                (5, max(20, int(img.shape[0] * 0.9))),
+                cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, 2)
+
+    if output_path:
+        cv2.imwrite(str(output_path), proof_img)
+
+    return {
+        'verdict': verdict,
+        'score': score,
+        'reasons': reasons,
+        'stats': {k: v.tolist() if isinstance(v, np.ndarray) else v
+                  for k, v in stats.items()},
+        'proof_image': proof_img,
+    }
+
+
+def analyze_reference_number(image, output_path=None):
+    """Check a reference-number crop for editing via digit consistency.
+
+    Designed for GCash reference numbers which appear in two formats:
+      - Continuous:  "0040027019913" (single line, 13 digits, kerning 1-3 px)
+      - Spaced:      "1039 879 183868" (groups separated by spaces, may be
+                      multi-line on narrow receipt panels)
+
+    Thresholds are calibrated from 9 real GCash receipts:
+      - Baseline: 0 px deviation on single-line ref#s (pixel-perfect render)
+      - Height:   ≤ 6 % deviation from median
+      - Width:    ≤ 43 % deviation (digit '1' is narrow, '8' is wide)
+      - Kerning:  1-3 px between digits in a group
+
+    Requires multiple independent indicators before flagging FORGED.
+
+    Args:
+        image: File path (str) or in-memory BGR numpy array.
+        output_path: Optional path to save the annotated proof image.
+
+    Returns:
+        dict with keys: verdict, score, reasons, proof_image.
+    """
+    if isinstance(image, str):
+        img = cv2.imread(image)
+        if img is None:
+            raise ValueError(f"Could not read image: {image}")
+    else:
+        img = image.copy()
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    boxes = sorted(
+        [(x, y, w, h) for c in contours
+         for x, y, w, h in [cv2.boundingRect(c)] if h > 8 and w > 3],
+        key=lambda b: b[0]
+    )
+
+    proof_img = img.copy()
+
+    if len(boxes) < 4:
+        return {
+            'verdict': 'INCONCLUSIVE',
+            'score': 0,
+            'reasons': ['Too few characters detected in reference number'],
+            'proof_image': proof_img,
+        }
+
+    heights = np.array([b[3] for b in boxes], dtype=float)
+    widths = np.array([b[2] for b in boxes], dtype=float)
+    baselines = np.array([b[1] + b[3] for b in boxes], dtype=float)
+
+    gaps = np.array([
+        boxes[i + 1][0] - (boxes[i][0] + boxes[i][2])
+        for i in range(len(boxes) - 1)
+    ], dtype=float)
+
+    median_h = np.median(heights)
+    median_w = np.median(widths)
+
+    # Detect multi-line layout: if baseline range exceeds median height,
+    # digits are split across rows. Split and check each row independently.
+    base_range = float(np.max(baselines) - np.min(baselines))
+    multi_line = base_range > median_h * 0.8 and len(boxes) >= 6
+
+    if multi_line:
+        return _check_ref_rows(boxes, proof_img, median_h, output_path)
+
+    # --- Single-line reference number ---
+    return _check_ref_single_row(
+        boxes, heights, widths, baselines, gaps,
+        median_h, median_w, proof_img, output_path,
+    )
+
+
+def _check_ref_rows(boxes, proof_img, median_h, output_path):
+    """Check a multi-line reference number by splitting into rows."""
+    # Cluster by baseline proximity
+    baselines = np.array([b[1] + b[3] for b in boxes], dtype=float)
+    rows = []
+    used = set()
+
+    for i in range(len(boxes)):
+        if i in used:
+            continue
+        bi = baselines[i]
+        row = [boxes[i]]
+        used.add(i)
+        for j in range(i + 1, len(boxes)):
+            if j in used:
+                continue
+            if abs(baselines[j] - bi) < median_h * 0.6:
+                row.append(boxes[j])
+                used.add(j)
+        row = sorted(row, key=lambda b: b[0])
+        if len(row) >= 2:
+            rows.append(row)
+
+    if not rows:
+        return {
+            'verdict': 'INCONCLUSIVE',
+            'score': 0,
+            'reasons': ['Could not parse multi-line reference number rows'],
+            'proof_image': proof_img,
+        }
+
+    total_flags = 0
+    all_reasons = []
+
+    for row_idx, row_boxes in enumerate(rows):
+        row_heights = np.array([b[3] for b in row_boxes], dtype=float)
+        row_widths = np.array([b[2] for b in row_boxes], dtype=float)
+        row_bases = np.array([b[1] + b[3] for b in row_boxes], dtype=float)
+        row_gaps = np.array([
+            row_boxes[i + 1][0] - (row_boxes[i][0] + row_boxes[i][2])
+            for i in range(len(row_boxes) - 1)
+        ], dtype=float)
+
+        median_h_row = np.median(row_heights)
+        median_w_row = np.median(row_widths)
+
+        result = _check_ref_single_row(
+            row_boxes, row_heights, row_widths, row_bases, row_gaps,
+            median_h_row, median_w_row, proof_img, None,
+        )
+        total_flags += result['score']
+        all_reasons.extend(f"Row {row_idx + 1}: {r}" for r in result['reasons'])
+
+        # Draw row separator
+        top = min(b[1] for b in row_boxes)
+        bottom = max(b[1] + b[3] for b in row_boxes)
+        cv2.line(proof_img, (row_boxes[0][0] - 3, top - 2),
+                 (row_boxes[-1][0] + row_boxes[-1][2] + 3, top - 2),
+                 (255, 255, 0), 1)
+
+    verdict = "FAIL: FAKE" if total_flags >= 2 else "PASS: REAL"
+    color = (0, 0, 255) if "FAIL" in verdict else (0, 255, 0)
+    font_scale = max(0.35, proof_img.shape[0] / 120)
+    cv2.putText(proof_img, f"Ref#: {verdict} ({total_flags}f/{len(rows)}r)",
+                (5, max(20, int(proof_img.shape[0] * 0.9))),
+                cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, 2)
+
+    if output_path:
+        cv2.imwrite(str(output_path), proof_img)
+
+    return {
+        'verdict': verdict,
+        'score': total_flags,
+        'reasons': all_reasons,
+        'proof_image': proof_img,
+    }
+
+
+def _check_ref_single_row(boxes, heights, widths, baselines, gaps,
+                          median_h, median_w, proof_img, output_path):
+    """Core single-row reference number check with calibrated thresholds."""
+    flags = 0
+    reasons = []
+
+    median_base = np.median(baselines)
+
+    # --- Baseline (calibrated: real ref#s have 0 px deviation) ---
+    base_devs = np.abs(baselines - median_base)
+    base_outliers = np.where(base_devs > 1.0)[0]
+    extreme_base = np.any(base_devs > 2.5)
+
+    if extreme_base:
+        flags += 2
+        worst = int(np.argmax(base_devs))
+        reasons.append(
+            f"Char {worst + 1}: baseline shifted {base_devs[worst]:.1f}px "
+            f"— severe misalignment"
+        )
+    elif len(base_outliers) > 0:
+        flags += 1
+        reasons.append(
+            f"Baseline drift: {len(base_outliers)} char(s) off "
+            f"by >1px from median"
+        )
+
+    # Baseline line on proof
+    base_y = int(median_base)
+    cv2.line(proof_img, (boxes[0][0] - 3, base_y),
+             (boxes[-1][0] + boxes[-1][2] + 3, base_y), (0, 255, 255), 1)
+
+    # --- Height (calibrated: ≤ 6 %, threshold at 15 %) ---
+    h_devs = np.abs(heights - median_h) / max(median_h, 1)
+    h_outliers = np.where(h_devs > 0.15)[0]
+    if len(h_outliers) > 0:
+        flags += 1
+        reasons.append(
+            f"Height anomaly: {len(h_outliers)} char(s) deviate "
+            f">15% from median ({median_h:.0f}px)"
+        )
+
+    # --- Width (calibrated: ≤ 43 %, threshold at 50 %) ---
+    w_devs = np.abs(widths - median_w) / max(median_w, 1)
+    w_outliers = np.where(w_devs > 0.50)[0]
+    if len(w_outliers) > 0:
+        flags += 1
+        reasons.append(
+            f"Width anomaly: {len(w_outliers)} char(s) deviate "
+            f">50% from median ({median_w:.0f}px)"
+        )
+
+    # --- Kerning: separate structural gaps (spaces between groups) ---
+    # Structural = gap > 5× median kerning gap (≈ 10 px vs typical 2 px)
+    if len(gaps) > 0:
+        kerning_mask = np.ones(len(gaps), dtype=bool)
+        if len(gaps) >= 2:
+            # Find the typical kerning gap (most gaps are 1-3 px)
+            small_gaps = gaps[gaps < np.median(gaps) * 3.0]
+            if len(small_gaps) > 0:
+                typical_kerning = float(np.median(small_gaps))
+                kerning_mask = gaps <= typical_kerning * 5.0
+
+        kerning_gaps = gaps[kerning_mask]
+        if len(kerning_gaps) > 0:
+            median_kerning = float(np.median(kerning_gaps))
+            kerning_devs = np.abs(kerning_gaps - median_kerning)
+            # Flag outliers > 4 px from median (calibrated: kerning range is 1-3 px)
+            bad_kerning = np.where(kerning_devs > 4.0)[0]
+            if len(bad_kerning) > 0:
+                flags += 1
+                reasons.append(
+                    f"Irregular spacing in {len(bad_kerning)} gap(s) "
+                    f"(expected ~{median_kerning:.0f}px)"
+                )
+
+    # --- Draw boxes ---
+    outlier_indices = set(base_outliers) | set(h_outliers) | set(w_outliers)
+    for i, (x, y, w, h) in enumerate(boxes):
+        color = (0, 0, 255) if i in outlier_indices else (0, 255, 0)
+        cv2.rectangle(proof_img, (x, y), (x + w, y + h), color, 1)
+
+    # --- Verdict ---
+    verdict = "FAIL: FAKE" if flags >= 2 else "PASS: REAL"
+
+    color = (0, 0, 255) if "FAIL" in verdict else (0, 255, 0)
+    font_scale = max(0.35, proof_img.shape[0] / 120)
+    cv2.putText(proof_img, f"Ref#: {verdict} ({flags}f)",
+                (5, max(20, int(proof_img.shape[0] * 0.9))),
+                cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, 2)
+
+    if output_path:
+        cv2.imwrite(str(output_path), proof_img)
+
+    return {
+        'verdict': verdict,
+        'score': flags,
+        'reasons': reasons,
+        'proof_image': proof_img,
+    }

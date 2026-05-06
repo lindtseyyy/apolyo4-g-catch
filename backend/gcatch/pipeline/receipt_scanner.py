@@ -1,68 +1,107 @@
 """GCash receipt forensic scanner.
 
-Pipeline: extract the total-amount field from the receipt using OCR-based
-cropping, then run typography forensics on that crop to detect tampering.
+Pipeline: extract all fields from the receipt using OCR-based cropping,
+then run per-field typography forensics to detect tampering.
 """
 
 import os
 
 import cv2
 
-from gcatch.detectors.typography import analyze_amount_typography
-from gcatch.pipeline.receipt_cropper import extract_total_amount_field_from_receipt
+from gcatch.detectors.typography import (
+    analyze_amount_typography,
+    analyze_digit_typography,
+    analyze_reference_number,
+    analyze_typography,
+)
+from gcatch.pipeline.receipt_cropper import extract_all_field_crops
+
+# Map each field to the appropriate typography checker.
+FIELD_CHECKERS = {
+    "name": analyze_typography,
+    "phone_number": analyze_digit_typography,
+    "amount": analyze_amount_typography,
+    "total_amount": analyze_amount_typography,
+    "reference_number": analyze_reference_number,
+    "date": analyze_typography,
+}
 
 
 def verify_receipt(image_path, output_dir=None):
-    """Full receipt verification pipeline.
+    """Full receipt verification pipeline — checks every field.
 
     Steps:
-        1. Extract the Total Amount field from the receipt using white-card
+        1. Extract all recognizable fields from the receipt using white-card
            detection + OCR label matching.
-        2. Run advanced amount typography analysis on the crop.
-        3. Return combined results.
+        2. Run the appropriate typography analysis on each field crop.
+        3. Aggregate per-field results into a combined verdict.
 
     Args:
         image_path: Path to the receipt image.
-        output_dir: Optional directory for saving the amount crop and proof
-            image. If None, no files are written.
+        output_dir: Optional directory for saving field crops and proof
+            images. If None, no files are written.
 
     Returns:
-        dict with keys: verdict, score, reasons, amount_text,
-        amount_crop_path, proof_path, typography_result.
+        dict with keys: verdict, fields, forged_fields, proof_paths.
     """
-    total_crop, total_text = extract_total_amount_field_from_receipt(image_path)
+    field_crops = extract_all_field_crops(image_path)
 
-    if total_crop is None:
+    if not field_crops:
         return {
             "verdict": "INCONCLUSIVE",
-            "score": 0,
-            "reasons": ["Could not locate Total Amount field in receipt"],
-            "amount_text": None,
-            "amount_crop_path": None,
-            "proof_path": None,
-            "typography_result": None,
+            "fields": {},
+            "forged_fields": [],
+            "reasons": ["No fields could be extracted from the receipt"],
         }
 
-    amount_crop_path = None
-    proof_path = None
+    field_results = {}
+    forged_fields = []
+    all_reasons = []
 
-    if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
-        stem = os.path.splitext(os.path.basename(image_path))[0]
-        amount_crop_path = os.path.join(output_dir, f"{stem}__total_amount.jpg")
-        cv2.imwrite(amount_crop_path, total_crop)
-        proof_path = os.path.join(output_dir, f"{stem}__typography_proof.jpg")
+    proof_paths = {}
 
-    typography_result = analyze_amount_typography(total_crop, proof_path)
+    for field_name, (crop, ocr_text) in field_crops.items():
+        checker = FIELD_CHECKERS.get(field_name, analyze_typography)
+
+        proof_path = None
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
+            stem = os.path.splitext(os.path.basename(image_path))[0]
+            proof_path = os.path.join(
+                output_dir, f"{stem}__{field_name}_proof.jpg"
+            )
+            proof_paths[field_name] = proof_path
+
+        result = checker(crop, proof_path)
+
+        verdict = result["verdict"]
+        score = result.get("score", result.get("fraud_flags", 0))
+        reasons = result.get("reasons", [])
+
+        field_results[field_name] = {
+            "verdict": verdict,
+            "score": score,
+            "reasons": reasons,
+            "text": ocr_text,
+        }
+
+        if "FAIL" in verdict or verdict == "FORGED":
+            forged_fields.append(field_name)
+            all_reasons.extend(
+                f"[{field_name}] {r}" for r in reasons
+            )
+
+    if not forged_fields:
+        combined_verdict = "AUTHENTIC"
+    else:
+        combined_verdict = "FORGED"
 
     return {
-        "verdict": typography_result["verdict"],
-        "score": typography_result["score"],
-        "reasons": typography_result["reasons"],
-        "amount_text": total_text,
-        "amount_crop_path": amount_crop_path,
-        "proof_path": proof_path,
-        "typography_result": typography_result,
+        "verdict": combined_verdict,
+        "fields": field_results,
+        "forged_fields": forged_fields,
+        "reasons": all_reasons,
+        "proof_paths": proof_paths if output_dir else {},
     }
 
 
@@ -74,11 +113,16 @@ def scan_receipt(image_path, output_path=None):
     output_dir = os.path.dirname(output_path) if output_path else None
     result = verify_receipt(image_path, output_dir=output_dir)
 
-    flags = result["score"] if result["verdict"] != "INCONCLUSIVE" else 0
+    total_flags = sum(
+        f["score"] for f in result["fields"].values()
+        if "FAIL" in f["verdict"] or f["verdict"] == "FORGED"
+    )
 
     return {
         "verdict": result["verdict"],
-        "flags": flags,
+        "flags": total_flags,
         "reasons": result["reasons"],
-        "proof_image_path": result["proof_path"],
+        "fields": result["fields"],
+        "forged_fields": result["forged_fields"],
+        "proof_image_path": output_path,
     }

@@ -56,6 +56,15 @@ class HealthResponse(BaseModel):
     version: str = "0.1.0"
 
 
+class FieldResult(BaseModel):
+    """Per-field typography analysis result."""
+
+    verdict: str = Field(description="Field-level verdict: PASS: REAL, FAIL: FAKE, AUTHENTIC, FORGED, or INCONCLUSIVE.")
+    score: float = Field(description="Fraud score for this field.")
+    reasons: list[str] = Field(default_factory=list, description="Findings specific to this field.")
+    text: Optional[str] = Field(default=None, description="OCR-extracted text for this field.")
+
+
 class TypographyAnalysisResponse(BaseAnalysisResponse):
     """Typography-specific analysis result for amount-field forensics."""
 
@@ -69,23 +78,22 @@ class TypographyAnalysisResponse(BaseAnalysisResponse):
 
 
 class PipelineAnalysisResponse(BaseAnalysisResponse):
-    """Combined receipt verification pipeline result (ELA + typography)."""
+    """Combined receipt verification pipeline result (ELA + per-field typography)."""
 
     analysis_type: str = "pipeline"
     ela_verdict: str = Field(description="ELA verdict: AUTHENTIC or FORGED.")
     ela_is_ai_generated: bool = Field(description="Whether ELA suspects AI generation.")
     ela_noise_score: float = Field(description="ELA composite noise score (0-100).")
-    typography_verdict: Optional[str] = Field(
-        default=None, description="Typography verdict: PASS: REAL, FAIL: FAKE, or INCONCLUSIVE."
+    fields: dict[str, FieldResult] = Field(
+        default_factory=dict,
+        description="Per-field typography results keyed by field name (name, phone_number, amount, total_amount, reference_number, date).",
     )
-    typography_fraud_score: Optional[float] = Field(
-        default=None, description="Typography weighted fraud score."
+    forged_fields: list[str] = Field(
+        default_factory=list,
+        description="List of field names that failed typography checks.",
     )
     typography_reasons: list[str] = Field(
-        default_factory=list, description="Typography findings/reasons."
-    )
-    amount_text: Optional[str] = Field(
-        default=None, description="OCR-extracted amount text from the receipt."
+        default_factory=list, description="All typography findings across fields."
     )
     combined_verdict: str = Field(
         description="Final verdict combining ELA and typography results."

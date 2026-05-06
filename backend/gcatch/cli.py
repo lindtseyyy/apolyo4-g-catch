@@ -15,6 +15,23 @@ import os
 import sys
 
 
+def _print_field_results(fields):
+    """Print per-field typography results."""
+    if not fields:
+        print("  No fields analyzed.")
+        return
+
+    print(f"\n  {'Field':<20} {'Verdict':<16} {'Score':<8} {'OCR Text'}")
+    print(f"  {'-'*20} {'-'*16} {'-'*8} {'-'*20}")
+    for name, f in fields.items():
+        verdict = f["verdict"]
+        score = f["score"]
+        text = f.get("text", "") or ""
+        if len(text) > 25:
+            text = text[:22] + "..."
+        print(f"  {name:<20} {verdict:<16} {score:<8.0f} {text}")
+
+
 def cmd_ela(args):
     from gcatch.detectors.ela import run_ela, detect_microscopic_noise
     from gcatch.utils.image import convert_to_jpeg
@@ -74,7 +91,16 @@ def cmd_scan_receipt(args):
 
     output = args.output or "forensic_result.jpg"
     result = scan_receipt(args.image, output)
-    return result
+
+    print(f"\n{'='*50}")
+    print(f"  Receipt Forensic Scan")
+    print(f"  Image: {args.image}")
+    print(f"{'='*50}")
+    print(f"  Verdict:       {result['verdict']}")
+    print(f"  Forged fields: {result.get('forged_fields', []) or 'none'}")
+
+    _print_field_results(result.get("fields", {}))
+    print()
 
 
 def cmd_calibrate(args):
@@ -115,19 +141,10 @@ def cmd_verify(args):
     print(f"  Receipt Verification")
     print(f"  Image: {args.image}")
     print(f"{'='*50}")
-    print(f"  Amount text:  {result['amount_text'] or 'NOT FOUND'}")
-    print(f"  Verdict:      {result['verdict']}")
-    print(f"  Score:        {result['score']:.0f}")
+    print(f"  Verdict:       {result['verdict']}")
+    print(f"  Forged fields: {result.get('forged_fields', []) or 'none'}")
 
-    if result['reasons']:
-        print(f"\n  Findings:")
-        for r in result['reasons']:
-            print(f"    - {r}")
-
-    if result['amount_crop_path']:
-        print(f"\n  Amount crop:  {result['amount_crop_path']}")
-    if result['proof_path']:
-        print(f"  Proof image:  {result['proof_path']}")
+    _print_field_results(result.get("fields", {}))
     print()
 
 
