@@ -180,6 +180,9 @@ function HomeContent() {
                   {/* ===== LEFT COLUMN ===== */}
                   <div className="lg:w-2/5 flex-shrink-0 space-y-5">
                     <ImagePreview image={image} isScanning={isScanning} />
+                    {imageFile && (
+                      <p className="text-sm text-[#8899b8]/60 text-center truncate">{imageFile.name}</p>
+                    )}
 
                     {scanError && !isScanning && (
                       <motion.div
