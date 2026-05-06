@@ -28,7 +28,7 @@ export default function Home() {
 const TABS = [
   { id: 'ela', label: 'ELA Test', icon: ScanLine },
   { id: 'typography', label: 'Typography', icon: Fingerprint },
-  { id: 'reference', label: 'Reference', icon: Hash },
+  { id: 'reference', label: 'Reference No.', icon: Hash },
 ];
 
 function HomeContent() {
