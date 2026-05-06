@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ScanLine, Fingerprint, AlertTriangle, ChevronRight, FileSearch, Hash } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -44,6 +44,7 @@ function HomeContent() {
   const [analysisResult, setAnalysisResult] = useState(null);
   const [scanError, setScanError] = useState(null);
   const [activeTab, setActiveTab] = useState('ela');
+  const fileInputRef = useRef(null);
 
   // ── Handlers ──────────────────────────────────────────────
 
@@ -198,16 +199,33 @@ function HomeContent() {
                       </motion.div>
                     )}
 
+                    <input
+                      type="file"
+                      accept="image/*"
+                      ref={fileInputRef}
+                      className="hidden"
+                      onChange={handleImageUpload}
+                    />
                     {!isScanning && !result && (
-                      <motion.button
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        onClick={handleScan}
-                        className="w-full bg-gradient-to-r from-[#0066ff] to-[#00a8ff] hover:from-[#0052cc] hover:to-[#0090e0] text-white font-bold py-3.5 px-4 rounded-xl transition-all duration-300 shadow-lg shadow-[#0066ff]/25 hover:shadow-[#0066ff]/40 active:scale-[0.98] flex items-center justify-center gap-2 group"
-                      >
-                        <ScanLine className="w-5 h-5 group-hover:animate-spin" />
-                        Initiate Deep Scan
-                      </motion.button>
+                      <>
+                        <motion.button
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full text-sm font-semibold text-[#8899b8] hover:text-[#c8d4e8] bg-[rgba(0,102,255,0.04)] hover:bg-[rgba(0,102,255,0.08)] border border-[rgba(0,102,255,0.1)] hover:border-[rgba(0,102,255,0.2)] rounded-xl py-2.5 transition-all duration-200"
+                        >
+                          Reselect Image
+                        </motion.button>
+                        <motion.button
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          onClick={handleScan}
+                          className="w-full bg-gradient-to-r from-[#0066ff] to-[#00a8ff] hover:from-[#0052cc] hover:to-[#0090e0] text-white font-bold py-3.5 px-4 rounded-xl transition-all duration-300 shadow-lg shadow-[#0066ff]/25 hover:shadow-[#0066ff]/40 active:scale-[0.98] flex items-center justify-center gap-2 group"
+                        >
+                          <ScanLine className="w-5 h-5 group-hover:animate-spin" />
+                          Initiate Receipt Scan
+                        </motion.button>
+                      </>
                     )}
                   </div>
 
@@ -219,7 +237,7 @@ function HomeContent() {
                         <ScanLine className="w-12 h-12 text-[#8899b8]/40 mb-4" />
                         <p className="text-[#8899b8] font-semibold">Awaiting Analysis</p>
                         <p className="text-xs text-[#8899b8]/60 mt-1 max-w-xs">
-                          Upload a receipt and click &quot;Initiate Deep Scan&quot; to see forensic results here.
+                          Upload a receipt and click &quot;Initiate Receipt Scan&quot; to see forensic results here.
                         </p>
                       </div>
                     )}
