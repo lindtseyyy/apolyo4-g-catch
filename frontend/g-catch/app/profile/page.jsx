@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { motion } from 'framer-motion';
-import { User, Mail, LogOut, Shield, Fingerprint, Key, Copy, Check } from 'lucide-react';
+import { User, Mail, LogOut, Shield, Fingerprint, Key, Copy, Check, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 export default function Profile() {
@@ -63,6 +64,16 @@ function ProfileContent({ user, isLoggingOut, handleLogout, copyUid, copied }) {
           <div className="absolute top-0 right-0 w-12 h-12 border-r-2 border-t-2 border-[rgba(0,102,255,0.2)] rounded-tr-3xl" />
           <div className="absolute bottom-0 left-0 w-12 h-12 border-l-2 border-b-2 border-[rgba(0,102,255,0.2)] rounded-bl-3xl" />
           <div className="absolute bottom-0 right-0 w-12 h-12 border-r-2 border-b-2 border-[rgba(0,102,255,0.2)] rounded-br-3xl" />
+
+          {/* Back button */}
+          <div className="flex justify-end mb-4">
+            <Link href="/">
+              <button className="flex items-center gap-1.5 text-xs text-[#8899b8] hover:text-[#c8d4e8] bg-[rgba(0,102,255,0.04)] hover:bg-[rgba(0,102,255,0.08)] border border-[rgba(0,102,255,0.1)] px-3 py-2 rounded-lg transition-all cursor-pointer">
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Back
+              </button>
+            </Link>
+          </div>
 
           {/* Header */}
           <div className="flex items-center gap-4 mb-8">
