@@ -83,6 +83,7 @@ def cmd_calibrate(args):
         real_dir=args.real,
         ai_dir=args.ai,
         output_dir=args.output,
+        patch_size=args.patch_size,
     )
     print(f"\nELA outputs saved to: {result['ela_output_dir']}")
 
@@ -134,6 +135,8 @@ def main():
     p_cal.add_argument("--real", required=True, help="Directory of real receipts")
     p_cal.add_argument("--ai", required=True, help="Directory of AI-generated receipts")
     p_cal.add_argument("--output", "-o", help="Output directory")
+    p_cal.add_argument("--patch-size", type=int, default=16,
+                       help="Patch size for analysis (default: 16)")
     p_cal.set_defaults(func=cmd_calibrate)
 
     p_ss = sub.add_parser("process-screenshot", help="OCR-based screenshot pipeline")

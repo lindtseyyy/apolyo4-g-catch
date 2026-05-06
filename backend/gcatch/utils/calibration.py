@@ -1,6 +1,7 @@
 import os
 import sys
 import tempfile
+from collections import OrderedDict
 from pathlib import Path
 
 import numpy as np
@@ -25,6 +26,10 @@ def calibrate_ela_thresholds(
 ):
     """Batch-process real and AI-generated receipts to find optimal thresholds.
 
+    If ai_dir contains subdirectories with images, each subdirectory is
+    processed separately and results are combined for threshold optimisation.
+    Per-subfolder breakdowns are shown in the report.
+
     Workflow for each image:
       1. Convert to JPEG if the source is not already a JPEG.
       2. Run Error Level Analysis.
@@ -34,7 +39,8 @@ def calibrate_ela_thresholds(
 
     Args:
         real_dir: Directory of gold-standard legitimate receipts.
-        ai_dir: Directory of known AI-generated receipts.
+        ai_dir: Directory of known AI-generated receipts (may contain
+            subdirectories that will each be processed as a group).
         output_dir: Where ELA output images land (None = system temp dir).
         variance_threshold: Starting std-dev cutoff (default 1.5).
         bright_threshold: Mean brightness for content vs background.
@@ -44,7 +50,7 @@ def calibrate_ela_thresholds(
 
     Returns:
         dict with: recommended_thresholds, real_results, ai_results,
-        real_summary, ai_summary, ela_output_dir.
+        real_summary, ai_summary, ai_subfolder_summaries, ela_output_dir.
     """
     if output_dir is None:
         output_dir = tempfile.mkdtemp(prefix="ela_calibrate_")
@@ -54,9 +60,24 @@ def calibrate_ela_thresholds(
     real_ela_items = _generate_ela_batch(
         real_dir, output_dir, "real", jpeg_quality, ela_alpha,
     )
-    ai_ela_items = _generate_ela_batch(
-        ai_dir, output_dir, "ai", jpeg_quality, ela_alpha,
-    )
+
+    ai_subdirs = _discover_ai_subdirs(ai_dir)
+
+    if ai_subdirs:
+        ai_ela_items = []
+        ai_items_by_subfolder = OrderedDict()
+        for subfolder, subdir_path in ai_subdirs:
+            items = _generate_ela_batch(
+                subdir_path, output_dir, f"ai_{subfolder}",
+                jpeg_quality, ela_alpha, subfolder=subfolder,
+            )
+            ai_ela_items.extend(items)
+            ai_items_by_subfolder[subfolder] = items
+    else:
+        ai_ela_items = _generate_ela_batch(
+            ai_dir, output_dir, "ai", jpeg_quality, ela_alpha,
+        )
+        ai_items_by_subfolder = None
 
     if not real_ela_items:
         raise RuntimeError(f"No processable images found in real_dir: {real_dir}")
@@ -152,7 +173,39 @@ def calibrate_ela_thresholds(
             },
         }
 
-    _print_report(real_results, ai_results, real_summary, ai_summary, recommended)
+    ai_subfolder_summaries = {}
+    if ai_items_by_subfolder:
+        for subfolder, items in ai_items_by_subfolder.items():
+            if not items:
+                continue
+            sub_results = [r for r in ai_results
+                           if r.get("subfolder") == subfolder]
+            if sub_results:
+                sub_ratios = [r["noisy_patch_ratio"] for r in sub_results]
+                sub_flagged = [r["flagged_patches"] for r in sub_results]
+                sub_bg = [r["background_patches"] for r in sub_results]
+                sub_total = [r["total_patches"] for r in sub_results]
+                ai_subfolder_summaries[subfolder] = {
+                    "count": len(sub_results),
+                    "noisy_patch_ratio": {
+                        "min": min(sub_ratios), "max": max(sub_ratios),
+                        "avg": round(np.mean(sub_ratios), 4),
+                    },
+                    "flagged_patches": {
+                        "min": min(sub_flagged), "max": max(sub_flagged),
+                        "avg": round(np.mean(sub_flagged), 1),
+                    },
+                    "background_patches": {
+                        "min": min(sub_bg), "max": max(sub_bg),
+                        "avg": round(np.mean(sub_bg), 1),
+                    },
+                    "total_patches": {
+                        "min": min(sub_total), "max": max(sub_total),
+                    },
+                }
+
+    _print_report(real_results, ai_results, real_summary, ai_summary,
+                  ai_subfolder_summaries, recommended)
 
     return {
         "recommended_thresholds": recommended,
@@ -160,15 +213,45 @@ def calibrate_ela_thresholds(
         "ai_results": ai_results,
         "real_summary": real_summary,
         "ai_summary": ai_summary,
+        "ai_subfolder_summaries": ai_subfolder_summaries,
         "ela_output_dir": output_dir,
     }
+
+
+def _discover_ai_subdirs(ai_dir):
+    """Discover image-containing subdirectories inside ai_dir.
+
+    Returns a list of (subfolder_name, full_path) tuples for subdirectories
+    that contain at least one image file. Returns an empty list if ai_dir
+    itself is flat (contains images directly).
+    """
+    ai_dir = str(ai_dir)
+    if not os.path.isdir(ai_dir):
+        return []
+
+    entries = sorted(os.listdir(ai_dir))
+    subdirs = []
+    for entry in entries:
+        entry_path = os.path.join(ai_dir, entry)
+        if not os.path.isdir(entry_path):
+            continue
+        has_images = any(
+            os.path.splitext(f)[1].lower() in _IMAGE_EXTENSIONS
+            for f in os.listdir(entry_path)
+            if not f.startswith(".")
+        )
+        if has_images:
+            subdirs.append((entry, entry_path))
+
+    return subdirs
 
 
 def _is_image(filepath):
     return os.path.splitext(filepath)[1].lower() in _IMAGE_EXTENSIONS
 
 
-def _generate_ela_batch(image_dir, output_dir, label, jpeg_quality, ela_alpha):
+def _generate_ela_batch(image_dir, output_dir, label, jpeg_quality, ela_alpha,
+                        subfolder=None):
     items = []
     image_dir = str(image_dir)
 
@@ -193,12 +276,15 @@ def _generate_ela_batch(image_dir, output_dir, label, jpeg_quality, ela_alpha):
 
             run_ela(work_path, ela_path)
 
-            items.append({
+            item = {
                 "filename": filename,
                 "converted": converted,
                 "original_path": src_path,
                 "ela_output": ela_path,
-            })
+            }
+            if subfolder:
+                item["subfolder"] = subfolder
+            items.append(item)
 
         except Exception as exc:
             print(f"  SKIP {filename}: {exc}", file=sys.stderr)
@@ -224,7 +310,7 @@ def _score_ela_batch(ela_items, variance_threshold, bright_threshold, patch_size
             output_path=overlay_path,
             patch_size=patch_size,
         )
-        results.append({
+        result = {
             "filename": item["filename"],
             "converted": item["converted"],
             "ela_output": item["ela_output"],
@@ -234,11 +320,15 @@ def _score_ela_batch(ela_items, variance_threshold, bright_threshold, patch_size
             "flagged_patches": patch["flagged_patches"],
             "background_patches": patch["background_patches"],
             "total_patches": patch["total_patches"],
-        })
+        }
+        if "subfolder" in item:
+            result["subfolder"] = item["subfolder"]
+        results.append(result)
     return results
 
 
-def _print_report(real_results, ai_results, real_summary, ai_summary, recommended):
+def _print_report(real_results, ai_results, real_summary, ai_summary,
+                  ai_subfolder_summaries, recommended):
     def header(text):
         print(f"\n{'=' * 72}")
         print(f"  {text}")
@@ -247,24 +337,46 @@ def _print_report(real_results, ai_results, real_summary, ai_summary, recommende
     def row(filename, converted, ratio, flagged, bg, total):
         flag = " *" if converted else ""
         pct = f"{ratio * 100:.1f}%"
-        print(f"  {filename:<28s} {pct:>6s}  {flagged:>5d}/{bg:<5d}  "
+        print(f"  {filename:<32s} {pct:>6s}  {flagged:>5d}/{bg:<5d}  "
+              f"{total:>6d}{flag}")
+
+    def sub_row(filename, converted, ratio, flagged, bg, total):
+        flag = " *" if converted else ""
+        pct = f"{ratio * 100:.1f}%"
+        print(f"    {filename:<30s} {pct:>6s}  {flagged:>5d}/{bg:<5d}  "
               f"{total:>6d}{flag}")
 
     header("REAL RECEIPTS (Gold Standard)")
-    print(f"  {'File':<28s} {'Ratio':>6s}  {'Flagged/Bg':>11s}  "
+    print(f"  {'File':<32s} {'Ratio':>6s}  {'Flagged/Bg':>11s}  "
           f"{'Patches':>6s}")
     print(f"  {'-' * 66}")
     for r in real_results:
         row(r["filename"], r["converted"], r["noisy_patch_ratio"],
             r["flagged_patches"], r["background_patches"], r["total_patches"])
 
-    header("AI-GENERATED RECEIPTS")
-    print(f"  {'File':<28s} {'Ratio':>6s}  {'Flagged/Bg':>11s}  "
+    # Combined AI results
+    if ai_subfolder_summaries:
+        header("AI-GENERATED RECEIPTS (Combined — All Subfolders)")
+    else:
+        header("AI-GENERATED RECEIPTS")
+    print(f"  {'File':<32s} {'Ratio':>6s}  {'Flagged/Bg':>11s}  "
           f"{'Patches':>6s}")
     print(f"  {'-' * 66}")
     for r in ai_results:
         row(r["filename"], r["converted"], r["noisy_patch_ratio"],
             r["flagged_patches"], r["background_patches"], r["total_patches"])
+
+    # Per-subfolder breakdowns
+    if ai_subfolder_summaries:
+        for subfolder, items in _ai_items_by_subfolder(ai_results):
+            header(f"AI — Subfolder: {subfolder}/")
+            print(f"  {'File':<32s} {'Ratio':>6s}  {'Flagged/Bg':>11s}  "
+                  f"{'Patches':>6s}")
+            print(f"  {'-' * 66}")
+            for r in items:
+                sub_row(r["filename"], r["converted"], r["noisy_patch_ratio"],
+                        r["flagged_patches"], r["background_patches"],
+                        r["total_patches"])
 
     header("SUMMARY")
     print(f"  Real receipts processed:  {real_summary['count']}")
@@ -292,6 +404,21 @@ def _print_report(real_results, ai_results, real_summary, ai_summary, recommende
               f"{ai_summary['background_patches']['min']:.0f} – "
               f"{ai_summary['background_patches']['max']:.0f}")
 
+    if ai_subfolder_summaries:
+        for subfolder, summary in ai_subfolder_summaries.items():
+            print()
+            print(f"  ── {subfolder}/ ──")
+            print(f"  Count: {summary['count']}")
+            print(f"  Noisy patch ratio:  "
+                  f"{summary['noisy_patch_ratio']['min']:.2%} – "
+                  f"{summary['noisy_patch_ratio']['max']:.2%}  "
+                  f"(avg {summary['noisy_patch_ratio']['avg']:.2%})")
+            print(f"  Flagged / bg:       "
+                  f"{summary['flagged_patches']['min']:.0f} – "
+                  f"{summary['flagged_patches']['max']:.0f} / "
+                  f"{summary['background_patches']['min']:.0f} – "
+                  f"{summary['background_patches']['max']:.0f}")
+
     header("RECOMMENDED THRESHOLDS")
     print(f"  variance_threshold  = {recommended['variance_threshold']:.2f}")
     print(f"  bright_threshold    = {recommended['bright_threshold']}")
@@ -307,3 +434,14 @@ def _print_report(real_results, ai_results, real_summary, ai_summary, recommende
     print(f"        output_path='overlay.jpg',")
     print(f"    )")
     print()
+
+
+def _ai_items_by_subfolder(ai_results):
+    """Group AI results by subfolder, preserving discovery order."""
+    seen = OrderedDict()
+    for r in ai_results:
+        sf = r.get("subfolder", "__ungrouped__")
+        if sf not in seen:
+            seen[sf] = []
+        seen[sf].append(r)
+    return seen.items()

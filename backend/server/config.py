@@ -33,5 +33,19 @@ thresholds_v3 = {
     "patch_size": 16,
 }
 
+thresholds_v4 = {
+    "variance_threshold": 1.2,
+    "bright_threshold": 30,
+    "noisy_patch_ratio": 0.4045,
+    "patch_size": 16,
+}
+
+thresholds_v5 = {
+    "variance_threshold": 1.5,
+    "bright_threshold": 30,
+    "noisy_patch_ratio": 0.379,
+    "patch_size": 8,
+}
+
 # Active preset
-ELA_THRESHOLDS = thresholds_v3
+ELA_THRESHOLDS = thresholds_v1
