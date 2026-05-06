@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, getAuthErrorMessage } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -45,7 +45,7 @@ export default function SignIn() {
       await signInWithEmailAndPassword(auth, email, password);
       router.push('/');
     } catch (err) {
-      setError(err.message || 'Failed to sign in');
+      setError(getAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -59,7 +59,7 @@ export default function SignIn() {
       await signInWithPopup(auth, provider);
       router.push('/');
     } catch (err) {
-      setError(err.message || 'Failed to sign in with Google');
+      setError(getAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }

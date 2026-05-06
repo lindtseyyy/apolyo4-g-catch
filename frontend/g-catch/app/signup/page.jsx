@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, getAuthErrorMessage } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -65,7 +65,7 @@ export default function SignUp() {
       await createUserWithEmailAndPassword(auth, email, password);
       router.push('/');
     } catch (err) {
-      setError(err.message || 'Failed to create account');
+      setError(getAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -79,7 +79,7 @@ export default function SignUp() {
       await signInWithPopup(auth, provider);
       router.push('/');
     } catch (err) {
-      setError(err.message || 'Failed to sign up with Google');
+      setError(getAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
