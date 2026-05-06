@@ -23,11 +23,19 @@ function HomeContent() {
   const [showModal, setShowModal] = useState(false);
   const [refExists, setRefExists] = useState(null);
   const [scanProgress, setScanProgress] = useState(0);
+  const [imageFile, setImageFile] = useState(null);
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [scanError, setScanError] = useState(null);
 
   const handleScan = async () => {
+    if (!imageFile) return;
+
     setIsScanning(true);
     setResult(null);
+    setAnalysisResult(null);
+    setScanError(null);
     setScanProgress(0);
+    setRefExists(null);
 
     const progressInterval = setInterval(() => {
       setScanProgress(prev => {
@@ -39,30 +47,51 @@ function HomeContent() {
       });
     }, 300);
 
-    // Extract mock reference and check against database during the scan
-    // const mockRef = 'REF-2026-0042';
-    const mockRef = 'REF-2026-' + String(Math.floor(Math.random() * 9000) + 1000);
-    setReferenceNumber(mockRef);
-
-    let refExists = false;
     try {
-      refExists = await checkReferenceExists(mockRef);
+      const formData = new FormData();
+      formData.append('file', imageFile);
+
+      const response = await fetch('http://localhost:8000/api/v1/analyze/receipt', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Analysis failed (${response.status})`);
+      }
+
+      const data = await response.json();
+
+      clearInterval(progressInterval);
+      setScanProgress(100);
+      setAnalysisResult(data);
+
+      const refField = data.fields?.reference_number;
+      const extractedRef = refField?.text || null;
+
+      if (extractedRef) {
+        setReferenceNumber(extractedRef);
+        try {
+          const exists = await checkReferenceExists(extractedRef);
+          setRefExists(exists);
+        } catch (err) {
+          console.error('Failed to check reference:', err);
+        }
+      } else {
+        setReferenceNumber('REF-2026-' + String(Math.floor(Math.random() * 9000) + 1000));
+      }
+
+      const verdict = data.combined_verdict?.toLowerCase();
+      setResult(verdict === 'authentic' ? 'authentic' : 'forged');
     } catch (err) {
-      console.error('Failed to check reference:', err);
+      clearInterval(progressInterval);
+      setScanProgress(0);
+      setScanError(err.message || 'An unexpected error occurred during analysis.');
+    } finally {
+      await new Promise(resolve => setTimeout(resolve, 400));
+      setIsScanning(false);
     }
-
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    clearInterval(progressInterval);
-    setScanProgress(100);
-
-    // Reference match is a forgery indicator; otherwise run normal checks
-    const scanResult = refExists ? 'forged' : (Math.random() > 0.5 ? 'authentic' : 'forged');
-
-    await new Promise(resolve => setTimeout(resolve, 400));
-    setIsScanning(false);
-    setResult(scanResult);
-    setConfirmed(false);
-    setRefExists(refExists);
   };
 
   const handleOpenModal = () => {
@@ -84,7 +113,10 @@ function HomeContent() {
     if (file) {
       const imageUrl = URL.createObjectURL(file);
       setImage(imageUrl);
+      setImageFile(file);
       setResult(null);
+      setAnalysisResult(null);
+      setScanError(null);
     }
   };
 
@@ -221,6 +253,21 @@ function HomeContent() {
                   )}
                 </div>
 
+                {/* Error Display */}
+                {scanError && !isScanning && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-5 p-4 bg-[rgba(255,61,113,0.08)] border border-[rgba(255,61,113,0.2)] rounded-xl flex items-start gap-3"
+                  >
+                    <AlertTriangle className="w-5 h-5 text-[#ff3d71] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-[#ff3d71] font-semibold">Scan Failed</p>
+                      <p className="text-xs text-[#8899b8] mt-0.5">{scanError}</p>
+                    </div>
+                  </motion.div>
+                )}
+
                 {/* Controls */}
                 {!isScanning && !result && (
                   <motion.button
@@ -256,44 +303,88 @@ function HomeContent() {
                       )}
                       <div>
                         <h3 className={`text-lg font-bold ${result === 'authentic' ? 'text-[#00c853]' : 'text-[#ff3d71]'}`}>
-                          {result === 'authentic' ? '98.4% Authentic Match' : 'FORGERY DETECTED'}
+                          {result === 'authentic' ? 'Verified Authentic' : 'FORGERY DETECTED'}
                         </h3>
                         <p className="text-[10px] text-[#8899b8] uppercase tracking-wider">
-                          {result === 'authentic' ? 'Verification Passed' : 'Anomalies Found'}
+                          {result === 'authentic'
+                            ? 'All forensic checks passed'
+                            : `${analysisResult?.forged_fields?.length || 0} field(s) flagged`}
                         </p>
                       </div>
                     </div>
 
                     {/* Analysis Details */}
                     <div className="space-y-2 mb-4">
-                      {result === 'authentic' ? (
+                      {analysisResult && (
                         <>
-                          <DetailRow label="Pixel Density" value="Valid" status="good" />
-                          <DetailRow label="OCR Validation" value="Passed" status="good" />
-                          <DetailRow label="ELA Consistency" value="Normal" status="good" />
-                        </>
-                      ) : refExists ? (
-                        <>
-                          <DetailRow label="Reference No." value={referenceNumber} status="bad" />
-                          <DetailRow label="Database Match" value="Already Registered" status="bad" />
-                          <DetailRow label="Forgery Risk" value="High — Reused Ref" status="bad" />
-                        </>
-                      ) : (
-                        <>
-                          <DetailRow label="Pixel Density" value="Anomalous" status="bad" />
-                          <DetailRow label="OCR Validation" value="Failed" status="bad" />
-                          <DetailRow label="ELA Consistency" value="Irregular" status="bad" />
+                          <DetailRow
+                            label="ELA Noise Score"
+                            value={`${analysisResult.ela_noise_score?.toFixed(1)}/100`}
+                            status={analysisResult.ela_noise_score < 50 ? 'good' : 'bad'}
+                          />
+                          <DetailRow
+                            label="AI Generation"
+                            value={analysisResult.ela_is_ai_generated ? 'Suspected' : 'Not Detected'}
+                            status={analysisResult.ela_is_ai_generated ? 'bad' : 'good'}
+                          />
+                          {(() => {
+                            const totalFields = Object.keys(analysisResult.fields || {}).length;
+                            const forgedCount = analysisResult.forged_fields?.length || 0;
+                            const passedCount = totalFields - forgedCount;
+                            return (
+                              <DetailRow
+                                label="Fields Verified"
+                                value={`${passedCount}/${totalFields} passed`}
+                                status={forgedCount === 0 ? 'good' : 'bad'}
+                              />
+                            );
+                          })()}
+                          <DetailRow
+                            label="Analysis Time"
+                            value={`${(analysisResult.duration_ms / 1000).toFixed(1)}s`}
+                            status="good"
+                          />
+                          {analysisResult.forged_fields?.length > 0 && (
+                            <DetailRow
+                              label="Forged Fields"
+                              value={analysisResult.forged_fields.join(', ')}
+                              status="bad"
+                            />
+                          )}
+                          {refExists && (
+                            <DetailRow
+                              label="Reference Check"
+                              value="Already Registered"
+                              status="bad"
+                            />
+                          )}
                         </>
                       )}
                     </div>
 
                     <p className="text-sm leading-relaxed text-[#8899b8]">
                       {result === 'authentic'
-                        ? 'Receipt structure matches verified templates. No compression artifacts or font anomalies detected across all analysis layers.'
+                        ? `All forensic checks passed. ELA noise score: ${analysisResult?.ela_noise_score?.toFixed(1)}/100. No typography or compression anomalies detected.`
                         : refExists
-                          ? `Reference number ${referenceNumber} was found in the cross-reference database. This receipt has been previously registered — a strong indicator of forgery or attempted reuse.`
-                          : 'Error Level Analysis detected pixel compression inconsistencies. Font spacing violates standard receipt generation matrix.'}
+                          ? `Reference number ${referenceNumber} was found in the cross-reference database — a strong indicator of forgery or attempted reuse. Additionally, the forensic analysis flagged ${analysisResult?.forged_fields?.length || 0} field(s).`
+                          : analysisResult?.forged_fields?.length > 0
+                            ? `Forensic analysis flagged ${analysisResult.forged_fields.length} field(s): ${analysisResult.forged_fields.join(', ')}. ${analysisResult.typography_reasons?.join(' ') || ''}`
+                            : `Error Level Analysis detected pixel compression inconsistencies (noise score: ${analysisResult?.ela_noise_score?.toFixed(1)}/100).`}
                     </p>
+
+                    {/* Proof Image */}
+                    {analysisResult?.proof_image_base64 && (
+                      <div className="mt-4">
+                        <img
+                          src={analysisResult.proof_image_base64}
+                          alt="Forensic proof"
+                          className="w-full rounded-xl border border-[rgba(0,102,255,0.15)]"
+                        />
+                        <p className="text-[10px] text-[#8899b8]/60 mt-1.5 text-center uppercase tracking-wider">
+                          Forensic Proof Image
+                        </p>
+                      </div>
+                    )}
 
                     {/* Save Reference button for authentic results */}
                     {result === 'authentic' && !confirmed && (
@@ -324,7 +415,7 @@ function HomeContent() {
                     )}
 
                     <button
-                      onClick={() => { setImage(null); setResult(null); setConfirmed(false); setReferenceNumber(''); }}
+                      onClick={() => { setImage(null); setImageFile(null); setResult(null); setAnalysisResult(null); setScanError(null); setConfirmed(false); setReferenceNumber(''); }}
                       className="mt-5 w-full flex items-center justify-center gap-2 text-sm font-semibold text-[#8899b8] hover:text-[#f0f6ff] bg-[rgba(0,102,255,0.05)] hover:bg-[rgba(0,102,255,0.1)] border border-[rgba(0,102,255,0.1)] hover:border-[rgba(0,102,255,0.25)] rounded-xl py-2.5 transition-all duration-200"
                     >
                       <ChevronRight className="w-4 h-4 rotate-180" />
