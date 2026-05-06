@@ -1,7 +1,5 @@
 'use client';
 
-import DetailRow from './DetailRow';
-
 export default function TypographyTab({ analysisResult }) {
   const fields = analysisResult?.fields;
   const hasFields = fields && Object.entries(fields).length > 0;
@@ -9,6 +7,12 @@ export default function TypographyTab({ analysisResult }) {
   if (!hasFields) {
     return <p className="text-sm text-[#8899b8]">No typography analysis data available.</p>;
   }
+
+  const rows = Object.entries(fields).map(([fieldName, fieldData]) => {
+    const isForged = fieldData.verdict === 'forged' || analysisResult.forged_fields?.includes(fieldName);
+    const isInconclusive = fieldData.verdict === 'INCONCLUSIVE';
+    return { fieldName, fieldData, isForged, isInconclusive };
+  });
 
   return (
     <div className="space-y-4">
@@ -25,7 +29,6 @@ export default function TypographyTab({ analysisResult }) {
           </div>
           {analysisResult.penalty_summary?.length > 0 && (
             <div className="mt-3 pt-3 border-t border-[rgba(0,102,255,0.08)]">
-              <p className="text-[10px] text-[#8899b8] uppercase tracking-wider mb-2">Penalties Applied</p>
               <ul className="space-y-1">
                 {analysisResult.penalty_summary.map((penalty, i) => (
                   <li key={i} className="text-xs text-[#ff3d71] flex items-start gap-1.5">
@@ -39,68 +42,35 @@ export default function TypographyTab({ analysisResult }) {
         </div>
       )}
 
-      <div className="space-y-3">
-        {Object.entries(fields).map(([fieldName, fieldData]) => {
-          const isForged = fieldData.verdict === 'forged' || analysisResult.forged_fields?.includes(fieldName);
-          return (
-            <div
-              key={fieldName}
-              className={`p-4 rounded-xl border ${
-                isForged
-                  ? 'bg-[rgba(255,61,113,0.04)] border-[rgba(255,61,113,0.15)]'
-                  : 'bg-[rgba(0,200,83,0.04)] border-[rgba(0,200,83,0.12)]'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-mono text-[#c8d4e8] capitalize">{fieldName.replace(/_/g, ' ')}</p>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  isForged
-                    ? 'bg-[rgba(255,61,113,0.15)] text-[#ff3d71]'
-                    : 'bg-[rgba(0,200,83,0.15)] text-[#00c853]'
-                }`}>
-                  {isForged ? 'FORGED' : 'AUTHENTIC'}
-                </span>
-              </div>
-              {fieldData.text && (
-                <p className="text-sm text-[#f0f6ff] font-mono mb-3">&ldquo;{fieldData.text}&rdquo;</p>
-              )}
-              {fieldData.score !== undefined && fieldData.score !== null && (
-                <DetailRow
-                  label="Fraud Score"
-                  value={fieldData.score.toFixed(2)}
-                  status={fieldData.score < 0.5 ? 'good' : 'bad'}
-                />
-              )}
-              {fieldData.reasons && fieldData.reasons.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-[rgba(0,102,255,0.08)]">
-                  <ul className="space-y-1">
-                    {fieldData.reasons.map((reason, i) => (
-                      <li key={i} className="text-xs text-[#ff3d71] flex items-start gap-1.5">
-                        <span className="w-1 h-1 rounded-full bg-[#ff3d71] mt-1.5 flex-shrink-0" />
-                        {reason}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {analysisResult.typography_reasons?.length > 0 && (
-        <div className="p-4 bg-[rgba(255,61,113,0.04)] border border-[rgba(255,61,113,0.15)] rounded-xl">
-          <p className="text-xs font-semibold text-[#ff3d71] uppercase tracking-wider mb-2">Global Anomalies</p>
-          <ul className="space-y-1">
-            {analysisResult.typography_reasons.map((reason, i) => (
-              <li key={i} className="text-xs text-[#8899b8] flex items-start gap-1.5">
-                <span className="w-1 h-1 rounded-full bg-[#ff3d71] mt-1.5 flex-shrink-0" />
-                {reason}
-              </li>
-            ))}
-          </ul>
+      {/* Field Status Table */}
+      <div className="rounded-xl border border-[rgba(0,102,255,0.1)] overflow-hidden">
+        {/* Table header */}
+        <div className="grid grid-cols-[1fr_auto] gap-3 px-4 py-2.5 bg-[rgba(0,102,255,0.06)] border-b border-[rgba(0,102,255,0.08)]">
+          <p className="text-[10px] text-[#8899b8] uppercase tracking-wider">Field</p>
+          <p className="text-[10px] text-[#8899b8] uppercase tracking-wider text-right">Status</p>
         </div>
-      )}
+
+        {/* Table rows */}
+        {rows.map(({ fieldName, fieldData, isForged, isInconclusive }, i) => (
+          <div
+            key={fieldName}
+            className={`grid grid-cols-[1fr_auto] gap-3 px-4 py-3 items-center ${
+              i < rows.length - 1 ? 'border-b border-[rgba(0,102,255,0.06)]' : ''
+            }`}
+          >
+            <p className="text-xs text-[#c8d4e8] capitalize">{fieldName.replace(/_/g, ' ')}</p>
+            <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${
+              isInconclusive
+                ? 'bg-[rgba(255,180,0,0.12)] text-[#ffb800]'
+                : isForged
+                  ? 'bg-[rgba(255,61,113,0.12)] text-[#ff3d71]'
+                  : 'bg-[rgba(0,200,83,0.12)] text-[#00c853]'
+            }`}>
+              {isInconclusive ? 'Skipped' : isForged ? 'Forged' : 'Unaltered'}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
