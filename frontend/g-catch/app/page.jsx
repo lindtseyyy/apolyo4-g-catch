@@ -242,6 +242,13 @@ function HomeContent() {
                     {/* Result Dashboard */}
                     {result && (
                       <div className="space-y-4">
+                        <button
+                          onClick={handleReset}
+                          className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-[#0066ff] hover:text-white bg-[rgba(0,102,255,0.08)] hover:bg-[#0066ff] border border-[rgba(0,102,255,0.2)] hover:border-[#0066ff] rounded-xl py-2.5 transition-all duration-200"
+                        >
+                          <ChevronRight className="w-4 h-4 rotate-180" />
+                          Scan another receipt
+                        </button>
                         <VerdictBanner
                           result={result}
                           forgedFieldCount={analysisResult?.forged_fields?.length || 0}
@@ -284,14 +291,6 @@ function HomeContent() {
                             </motion.div>
                           </AnimatePresence>
                         </div>
-
-                        <button
-                          onClick={handleReset}
-                          className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-[#8899b8] hover:text-[#f0f6ff] bg-[rgba(0,102,255,0.05)] hover:bg-[rgba(0,102,255,0.1)] border border-[rgba(0,102,255,0.1)] hover:border-[rgba(0,102,255,0.25)] rounded-xl py-2.5 transition-all duration-200"
-                        >
-                          <ChevronRight className="w-4 h-4 rotate-180" />
-                          Scan another receipt
-                        </button>
                       </div>
                     )}
                   </div>
