@@ -64,10 +64,10 @@ function HomeContent() {
         transition={{ duration: 0.6 }}
         className="text-center mb-10 max-w-lg"
       >
-        <div className="inline-flex items-center gap-2 bg-[rgba(0,102,255,0.08)] border border-[rgba(0,102,255,0.15)] rounded-full px-4 py-1.5 mb-5">
+        {/* <div className="inline-flex items-center gap-2 bg-[rgba(0,102,255,0.08)] border border-[rgba(0,102,255,0.15)] rounded-full px-4 py-1.5 mb-5">
           <div className="w-2 h-2 rounded-full bg-[#00c853] animate-pulse" />
           <span className="text-xs font-medium text-[#8899b8] tracking-wide uppercase">AI Forensic Engine Ready</span>
-        </div>
+        </div> */}
 
         <h1 className="text-5xl md:text-6xl font-extrabold mb-4 tracking-tight leading-tight">
           <span className="text-[#f0f6ff]">Verify with</span>
@@ -123,7 +123,7 @@ function HomeContent() {
                   {[
                     { icon: Fingerprint, label: 'Pixel Analysis', value: 'ELA' },
                     { icon: Cpu, label: 'OCR Engine', value: 'Tesseract' },
-                    { icon: ScanLine, label: 'Deep Scan', value: 'CNN' },
+                    { icon: ScanLine, label: 'Ref No. Check', value: 'Prevent reuse' },
                   ].map((item, i) => (
                     <div key={i} className="bg-[rgba(0,102,255,0.04)] border border-[rgba(0,102,255,0.1)] rounded-xl p-3 text-center">
                       <item.icon className="w-4 h-4 text-[#0066ff] mx-auto mb-1.5" />
@@ -269,11 +269,11 @@ function HomeContent() {
 
         {/* Bottom trust indicators */}
         <div className="flex items-center justify-center gap-6 mt-6">
-          <div className="flex items-center gap-2 text-[#8899b8]/60">
+          {/* <div className="flex items-center gap-2 text-[#8899b8]/60">
             <ShieldCheck className="w-3.5 h-3.5" />
             <span className="text-[10px] uppercase tracking-wider">Bank-Grade Security</span>
-          </div>
-          <div className="w-px h-3 bg-[rgba(0,102,255,0.15)]" />
+          </div> */}
+          {/* <div className="w-px h-3 bg-[rgba(0,102,255,0.15)]" /> */}
           <div className="flex items-center gap-2 text-[#8899b8]/60">
             <Fingerprint className="w-3.5 h-3.5" />
             <span className="text-[10px] uppercase tracking-wider">No Data Stored</span>
