@@ -772,13 +772,6 @@ def analyze_date(image, output_path=None):
 
     Punctuation (comma, colon) is excluded from baseline/height checks
     since it is naturally much smaller than letters and digits.
-
-    Args:
-        image: File path (str) or in-memory BGR numpy array.
-        output_path: Optional path to save the annotated proof image.
-
-    Returns:
-        dict with keys: verdict, score, reasons, proof_image.
     """
     if isinstance(image, str):
         img = cv2.imread(image)
@@ -870,7 +863,6 @@ def _check_date_rows(boxes, char_indices, punct_indices, proof_img,
             if abs(char_bases[idx_j] - bi) < median_h * 0.6:
                 row_chars.append(j)
                 used.add(j)
-        # Also grab nearby punctuation
         for p in punct_indices:
             if p in used:
                 continue
@@ -1000,11 +992,11 @@ def _check_date_single_row(boxes, char_indices, punct_indices, char_heights,
 
     for i, (x, y, w, h) in enumerate(boxes):
         if i in punct_indices:
-            color = (255, 255, 0)  # yellow = punctuation, not checked
+            color = (255, 255, 0)
         elif i in outlier_set:
-            color = (0, 0, 255)    # red = outlier
+            color = (0, 0, 255)
         else:
-            color = (0, 255, 0)    # green = ok
+            color = (0, 255, 0)
         cv2.rectangle(proof_img, (x, y), (x + w, y + h), color, 1)
 
     # --- Verdict ---
@@ -1013,6 +1005,197 @@ def _check_date_single_row(boxes, char_indices, punct_indices, char_heights,
     color = (0, 0, 255) if "FAIL" in verdict else (0, 255, 0)
     fs = max(0.35, proof_img.shape[0] / 120)
     cv2.putText(proof_img, f"Date: {verdict} ({flags}f)",
+                (5, max(20, int(proof_img.shape[0] * 0.9))),
+                cv2.FONT_HERSHEY_SIMPLEX, fs, color, 2)
+
+    if output_path:
+        cv2.imwrite(str(output_path), proof_img)
+
+    return {
+        'verdict': verdict,
+        'score': flags,
+        'reasons': reasons,
+        'proof_image': proof_img,
+    }
+
+
+def analyze_phone_number(image, output_path=None):
+    """Check a phone-number crop for editing.
+
+    Designed for GCash phone numbers in two formats:
+      - Full:    "+63 926 699 2655" (13 chars, 3 group spaces)
+      - Masked:  "+63 9** *** 7556" (bullets replace middle digits)
+
+    Calibrated from 9 real receipts:
+      - + sign:   wider aspect ratio, slightly lower baseline
+      - Digits:   18-25 px tall, baseline ≤ 1 px deviation
+      - Bullets:  9x9 px (38 % of digit height), lower baseline
+      - Kerning:  1-3 px within a digit group
+      - Spaces:   11-14 px between groups (3 groups after +63)
+
+    Bullets and the + sign are excluded from digit consistency checks.
+    Group-separator spaces are recognized and not flagged.
+    """
+    if isinstance(image, str):
+        img = cv2.imread(image)
+        if img is None:
+            raise ValueError(f"Could not read image: {image}")
+    else:
+        img = image.copy()
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    boxes = sorted(
+        [(x, y, w, h) for c in contours
+         for x, y, w, h in [cv2.boundingRect(c)] if h > 4 and w > 2],
+        key=lambda b: b[0]
+    )
+
+    proof_img = img.copy()
+
+    if len(boxes) < 6:
+        return {
+            'verdict': 'INCONCLUSIVE',
+            'score': 0,
+            'reasons': ['Too few characters in phone number'],
+            'proof_image': proof_img,
+        }
+
+    heights = np.array([b[3] for b in boxes], dtype=float)
+    widths = np.array([b[2] for b in boxes], dtype=float)
+    baselines = np.array([b[1] + b[3] for b in boxes], dtype=float)
+
+    median_h = np.median(heights)
+
+    # Bullets: < 50 % of median height (9 px vs 24 px digits)
+    is_bullet = heights < median_h * 0.50
+    # + sign: first 1-2 boxes, wider than tall (w/h > 0.85)
+    is_plus = np.zeros(len(boxes), dtype=bool)
+    for i in range(min(2, len(boxes))):
+        if widths[i] > heights[i] * 0.85:
+            is_plus[i] = True
+    is_digit = ~(is_bullet | is_plus)
+
+    digit_indices = np.where(is_digit)[0]
+    bullet_indices = np.where(is_bullet)[0]
+
+    if len(digit_indices) < 3:
+        return {
+            'verdict': 'INCONCLUSIVE',
+            'score': 0,
+            'reasons': ['Too few visible digits in phone number'],
+            'proof_image': proof_img,
+        }
+
+    digit_heights = heights[digit_indices]
+    digit_widths = widths[digit_indices]
+    digit_bases = baselines[digit_indices]
+    median_digit_h = np.median(digit_heights)
+    median_digit_w = np.median(digit_widths)
+
+    flags = 0
+    reasons = []
+
+    # Baseline (calibrated: digits ≤ 1 px deviation)
+    median_digit_base = np.median(digit_bases)
+    base_devs = np.abs(digit_bases - median_digit_base)
+    base_outliers = np.where(base_devs > 1.5)[0]
+    extreme_base = np.any(base_devs > 3.0)
+
+    if extreme_base:
+        flags += 2
+        worst = int(np.argmax(base_devs))
+        reasons.append(
+            f"Phone digit {worst + 1}: baseline shifted "
+            f"{base_devs[worst]:.1f}px — severe misalignment"
+        )
+    elif len(base_outliers) > 0:
+        flags += 1
+        reasons.append(
+            f"Phone baseline drift: {len(base_outliers)} digit(s) "
+            f"off by >1.5px from median"
+        )
+
+    base_y = int(median_digit_base)
+    all_digit_xs = [boxes[i][0] for i in digit_indices] + \
+                   [boxes[i][0] + boxes[i][2] for i in digit_indices]
+    cv2.line(proof_img, (min(all_digit_xs) - 3, base_y),
+             (max(all_digit_xs) + 3, base_y), (0, 255, 255), 1)
+
+    # Height (calibrated: ≤ 30 %)
+    h_devs = np.abs(digit_heights - median_digit_h) / max(median_digit_h, 1)
+    h_outliers = np.where(h_devs > 0.30)[0]
+    if len(h_outliers) > 0:
+        flags += 1
+        reasons.append(
+            f"Phone height anomaly: {len(h_outliers)} digit(s) "
+            f">30% from median ({median_digit_h:.0f}px)"
+        )
+
+    # Width (calibrated: ≤ 42 %, threshold at 45 %)
+    w_devs = np.abs(digit_widths - median_digit_w) / max(median_digit_w, 1)
+    w_outliers = np.where(w_devs > 0.45)[0]
+    if len(w_outliers) > 0:
+        flags += 1
+        reasons.append(
+            f"Phone width anomaly: {len(w_outliers)} digit(s) "
+            f">45% from median ({median_digit_w:.0f}px)"
+        )
+
+    # Kerning: detect group structure
+    all_indices = sorted(list(digit_indices) + list(bullet_indices) +
+                         list(np.where(is_plus)[0]))
+    if len(all_indices) >= 2:
+        gaps = np.array([
+            boxes[all_indices[k + 1]][0] -
+            (boxes[all_indices[k]][0] + boxes[all_indices[k]][2])
+            for k in range(len(all_indices) - 1)
+        ], dtype=float)
+
+        small_gaps = gaps[gaps < median_digit_w * 0.5]
+        typical_kerning = float(np.median(small_gaps)) if len(small_gaps) > 0 else 2.0
+
+        kerning_mask = gaps <= typical_kerning * 5.0
+        kerning_gaps = gaps[kerning_mask]
+
+        if len(kerning_gaps) > 0:
+            med_kerning = float(np.median(kerning_gaps))
+            bad_kerning = np.where(np.abs(kerning_gaps - med_kerning) > 4.0)[0]
+            if len(bad_kerning) > 0:
+                flags += 1
+                reasons.append(
+                    f"Phone irregular spacing: {len(bad_kerning)} gap(s) "
+                    f"deviate from ~{med_kerning:.0f}px kerning"
+                )
+
+    # Draw boxes
+    outlier_digit_set = set()
+    for idx in base_outliers:
+        outlier_digit_set.add(digit_indices[idx])
+    for idx in h_outliers:
+        outlier_digit_set.add(digit_indices[idx])
+    for idx in w_outliers:
+        outlier_digit_set.add(digit_indices[idx])
+
+    for i, (x, y, w, h) in enumerate(boxes):
+        if i in bullet_indices:
+            color = (255, 200, 0)
+        elif is_plus[i]:
+            color = (255, 255, 0)
+        elif i in outlier_digit_set:
+            color = (0, 0, 255)
+        else:
+            color = (0, 255, 0)
+        cv2.rectangle(proof_img, (x, y), (x + w, y + h), color, 1)
+
+    verdict = "FAIL: FAKE" if flags >= 2 else "PASS: REAL"
+    has_bullets = "masked" if len(bullet_indices) > 0 else "full"
+    color = (0, 0, 255) if "FAIL" in verdict else (0, 255, 0)
+    fs = max(0.35, proof_img.shape[0] / 120)
+    cv2.putText(proof_img, f"Phone({has_bullets}): {verdict} ({flags}f)",
                 (5, max(20, int(proof_img.shape[0] * 0.9))),
                 cv2.FONT_HERSHEY_SIMPLEX, fs, color, 2)
 
