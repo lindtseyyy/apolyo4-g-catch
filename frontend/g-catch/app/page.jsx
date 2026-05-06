@@ -246,7 +246,7 @@ function HomeContent() {
                           result={result}
                           forgedFieldCount={analysisResult?.forged_fields?.length || 0}
                         />
-                        <MetricsGrid analysisResult={analysisResult} />
+                        <MetricsGrid analysisResult={analysisResult} refExists={refExists} />
                         <TabBar tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
 
                         <div className="min-h-[250px]">

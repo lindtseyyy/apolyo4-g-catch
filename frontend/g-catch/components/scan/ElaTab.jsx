@@ -12,8 +12,11 @@ export default function ElaTab({ analysisResult, result, refExists, referenceNum
           status={analysisResult.ela_is_ai_generated ? 'bad' : 'good'}
         />
         <DetailRow
-          label="Confidence"
-          value={`${analysisResult.ela_integrity_score?.toFixed(1)}%`}
+          label={analysisResult.ela_is_ai_generated ? 'Forgery Evidence' : 'Confidence'}
+          value={analysisResult.ela_is_ai_generated
+            ? `${(100 - analysisResult.ela_integrity_score)?.toFixed(1)}%`
+            : `${analysisResult.ela_integrity_score?.toFixed(1)}%`
+          }
           status={analysisResult.ela_integrity_score >= 75 ? 'good' : 'bad'}
         />
       </div>

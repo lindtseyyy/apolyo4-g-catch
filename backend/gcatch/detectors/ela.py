@@ -169,13 +169,13 @@ def calculate_ela_integrity(raw_score, threshold):
 
       * Clean Floor (raw_score <= 0.02)         → 100 % integrity
       * Threshold   (raw_score == threshold)    →  75 % integrity  ("Passing Grade")
-      * Max Noise   (raw_score >= thresh * 2.5) →   0 % integrity
+      * Max Noise   (raw_score >= thresh * 4.0) →   0 % integrity
 
     Zone A  [0.02 … threshold]      100 % → 75 %   (tolerates Messenger compression)
-    Zone B  (threshold … thresh*2.5)  75 % →  0 %   (forgery / artifact region)
+    Zone B  (threshold … thresh*4.0)  75 % →  0 %   (forgery / artifact region)
     """
     CLEAN_FLOOR = 0.02
-    max_noise = threshold * 2.5
+    max_noise = threshold * 4.0
 
     if raw_score <= CLEAN_FLOOR:
         return 100.0
