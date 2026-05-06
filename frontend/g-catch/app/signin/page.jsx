@@ -40,6 +40,10 @@ export default function SignIn() {
   const handleEmailSignIn = async (e) => {
     e.preventDefault();
     setError('');
+    if (!email || !password) {
+      setError('All fields are required');
+      return;
+    }
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
@@ -128,7 +132,7 @@ export default function SignIn() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder="Enter email address"
                   className="w-full bg-[rgba(0,102,255,0.04)] border border-[rgba(0,102,255,0.12)] hover:border-[rgba(0,102,255,0.25)] rounded-xl pl-11 pr-4 py-3 text-[#f0f6ff] placeholder-[#8899b8]/50 transition-all"
                   required
                 />
@@ -149,7 +153,7 @@ export default function SignIn() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="Enter password"
                   className="w-full bg-[rgba(0,102,255,0.04)] border border-[rgba(0,102,255,0.12)] hover:border-[rgba(0,102,255,0.25)] rounded-xl pl-11 pr-11 py-3 text-[#f0f6ff] placeholder-[#8899b8]/50 transition-all"
                   required
                 />
