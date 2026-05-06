@@ -1,0 +1,16 @@
+# Python virtual environment
+venv/
+.env/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Environment variables
+.env.local
+
+# VSCode
+.vscode/
+
+# Mac/Linux junk
+.DS_Store
