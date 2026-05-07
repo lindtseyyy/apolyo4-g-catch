@@ -84,7 +84,8 @@ function HomeContent() {
       setAnalysisResult(data);
 
       const refField = data.fields?.reference_number;
-      const extractedRef = refField?.text || null;
+      const rawRef = refField?.text || null;
+      const extractedRef = rawRef ? rawRef.replace(/\s+/g, '') : null;
 
       if (extractedRef) {
         setReferenceNumber(extractedRef);
@@ -123,7 +124,9 @@ function HomeContent() {
 
   const handleConfirm = async () => {
     try {
-      await saveScan({ referenceNumber });
+      const cleanedRef = referenceNumber.replace(/\s+/g, '');
+      await saveScan({ referenceNumber: cleanedRef });
+      setReferenceNumber(cleanedRef);
       setConfirmed(true);
       setShowModal(false);
     } catch (err) {
