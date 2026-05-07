@@ -1,9 +1,13 @@
 [build]
-builder = "DOCKERFILE"
+# Tell Railway to use the Dockerfile inside the backend directory
 dockerfilePath = "backend/Dockerfile"
+builder = "DOCKERFILE"
+
+# Set the build context to the backend directory so COPY commands resolve correctly
 watchPatterns = ["backend/**"]
 
 [deploy]
+# Railway injects $PORT at runtime; healthcheck on root
 healthcheckPath = "/"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
