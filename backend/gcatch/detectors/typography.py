@@ -1071,6 +1071,9 @@ def analyze_phone_number(image, output_path=None):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     boxes = sorted(
@@ -1078,6 +1081,14 @@ def analyze_phone_number(image, output_path=None):
          for x, y, w, h in [cv2.boundingRect(c)] if h > 4 and w > 2],
         key=lambda b: b[0]
     )
+
+    if len(boxes) < 6:
+        tree_contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        boxes = sorted(
+            [(x, y, w, h) for c in tree_contours
+             for x, y, w, h in [cv2.boundingRect(c)] if h > 2 and w > 1],
+            key=lambda b: b[0]
+        )
 
     proof_img = img.copy()
 
@@ -1092,20 +1103,46 @@ def analyze_phone_number(image, output_path=None):
     heights = np.array([b[3] for b in boxes], dtype=float)
     widths = np.array([b[2] for b in boxes], dtype=float)
     baselines = np.array([b[1] + b[3] for b in boxes], dtype=float)
+    ratios = widths / np.maximum(heights, 1)
 
-    median_h = np.median(heights)
+    # --- Natural-break clustering on heights ---
+    # Digits are ~18-25 px, bullets ~9 px. The largest gap in sorted
+    # heights cleanly separates the two groups (unlike median, which
+    # bullets skew). If no clear break exists, the number is unmasked.
+    sorted_h = np.sort(heights)
+    gaps = np.diff(sorted_h)
 
-    # Bullets: < 50 % of median height (9 px vs 24 px digits)
-    is_bullet = heights < median_h * 0.50
-    # + sign: first 1-2 boxes, wider than tall (w/h > 0.85)
+    if len(gaps) >= 1 and np.max(gaps) >= 4:
+        split1 = int(np.argmax(gaps))
+        digit_cutoff = sorted_h[split1] + gaps[split1] / 2
+        is_digit_h = heights >= digit_cutoff
+        is_bullet_h = heights < digit_cutoff
+    else:
+        digit_cutoff = np.median(heights) * 0.60
+        is_digit_h = np.ones(len(heights), dtype=bool)
+        is_bullet_h = np.zeros(len(heights), dtype=bool)
+
+    # --- + sign: wide aspect ratio, in the first few positions ---
     is_plus = np.zeros(len(boxes), dtype=bool)
-    for i in range(min(2, len(boxes))):
-        if widths[i] > heights[i] * 0.85:
+    for i in range(min(3, len(boxes))):
+        if ratios[i] > 0.85 and heights[i] >= digit_cutoff * 0.6:
             is_plus[i] = True
-    is_digit = ~(is_bullet | is_plus)
+
+    # --- Aspect-ratio refinement ---
+    # Digits are taller than wide (w/h < 0.85). Square/wide blobs that
+    # land in the digit height range are reclassified as bullets.
+    digit_ratio_ok = ratios < 0.85
+
+    is_digit = is_digit_h & digit_ratio_ok & ~is_plus
+    is_bullet = is_bullet_h | (is_digit_h & ~digit_ratio_ok & ~is_plus)
+
+    # Reverse check: bullets with digit-like proportions (w/h < 0.70)
+    # may be pasted digits that fell into the wrong height cluster.
+    bullet_looks_like_digit = is_bullet & (ratios < 0.70)
 
     digit_indices = np.where(is_digit)[0]
     bullet_indices = np.where(is_bullet)[0]
+    suspicious_bullet_indices = np.where(bullet_looks_like_digit)[0]
 
     if len(digit_indices) < 3:
         return {
@@ -1123,6 +1160,14 @@ def analyze_phone_number(image, output_path=None):
 
     flags = 0
     reasons = []
+
+    # --- Suspicious bullets ---
+    if len(suspicious_bullet_indices) > 0:
+        flags += 1
+        reasons.append(
+            f"Phone suspicious masking: {len(suspicious_bullet_indices)} "
+            f"bullet(s) with digit-like proportions"
+        )
 
     # Baseline (calibrated: digits ≤ 1 px deviation)
     median_digit_base = np.median(digit_bases)
@@ -1150,14 +1195,14 @@ def analyze_phone_number(image, output_path=None):
     cv2.line(proof_img, (min(all_digit_xs) - 3, base_y),
              (max(all_digit_xs) + 3, base_y), (0, 255, 255), 1)
 
-    # Height (calibrated: ≤ 30 %)
+    # Height (calibrated: ≤ 20 %)
     h_devs = np.abs(digit_heights - median_digit_h) / max(median_digit_h, 1)
-    h_outliers = np.where(h_devs > 0.30)[0]
+    h_outliers = np.where(h_devs > 0.20)[0]
     if len(h_outliers) > 0:
         flags += 1
         reasons.append(
             f"Phone height anomaly: {len(h_outliers)} digit(s) "
-            f">30% from median ({median_digit_h:.0f}px)"
+            f">20% from median ({median_digit_h:.0f}px)"
         )
 
     # Width (calibrated: ≤ 42 %, threshold at 45 %)
@@ -1216,11 +1261,12 @@ def analyze_phone_number(image, output_path=None):
             color = (0, 255, 0)
         cv2.rectangle(proof_img, (x, y), (x + w, y + h), color, 1)
 
-    verdict = "FAIL: FAKE" if flags >= 2 else "PASS: REAL"
+    verdict = "FAIL: FAKE" if flags >= 1 else "PASS: REAL"
     has_bullets = "masked" if len(bullet_indices) > 0 else "full"
+    n_suspicious = len(suspicious_bullet_indices)
     color = (0, 0, 255) if "FAIL" in verdict else (0, 255, 0)
     fs = max(0.35, proof_img.shape[0] / 120)
-    cv2.putText(proof_img, f"Phone({has_bullets}): {verdict} ({flags}f)",
+    cv2.putText(proof_img, f"Phone({has_bullets}): {verdict} ({flags}f, {n_suspicious}s)",
                 (5, max(20, int(proof_img.shape[0] * 0.9))),
                 cv2.FONT_HERSHEY_SIMPLEX, fs, color, 2)
 
