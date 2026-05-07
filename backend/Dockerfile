@@ -16,11 +16,11 @@ RUN apt-get update && \
 WORKDIR /app
 
 # ---------- Python dependencies (cached layer) ----------
-COPY backend/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ---------- Application code ----------
-COPY backend/ .
+COPY . .
 
 # ---------- Create writable dirs for uploads / output ----------
 RUN mkdir -p /app/uploads /app/output
