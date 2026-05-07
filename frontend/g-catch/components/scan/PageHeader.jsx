@@ -18,7 +18,7 @@ export default function PageHeader() {
       <p className="text-[#8899b8] text-lg leading-relaxed">
         Deep-scan forensic analysis for digital receipts.
         <br className="hidden sm:block" />
-        Detect fakes before they cost you.
+        Catch the fraud before it catches you.
       </p>
     </motion.div>
   );
