@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ShieldCheck, AlertTriangle, Fingerprint } from 'lucide-react';
+import { ShieldCheck, AlertTriangle } from 'lucide-react';
 
 export default function ReferenceTab({ referenceNumber, refExists, result, confirmed, onOpenModal }) {
   return (
@@ -44,9 +44,8 @@ export default function ReferenceTab({ referenceNumber, refExists, result, confi
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           onClick={onOpenModal}
-          className="w-full bg-[rgba(0,102,255,0.08)] hover:bg-[rgba(0,102,255,0.15)] border border-[rgba(0,102,255,0.2)] text-[#0066ff] font-semibold py-3 px-4 rounded-xl transition-all duration-200 text-sm flex items-center justify-center gap-2"
+          className="w-full bg-[rgba(0,102,255,0.08)] hover:bg-[rgba(0,102,255,0.15)] border border-[rgba(0,102,255,0.2)] text-[#0066ff] font-semibold py-3 px-4 rounded-xl transition-all duration-200 text-sm"
         >
-          <Fingerprint className="w-4 h-4" />
           Save Reference No. for Cross-Checking
         </motion.button>
       )}
