@@ -16,6 +16,28 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: "G-Catch | Forensic Receipt Verification",
   description: "AI-powered forensic pixel analysis for digital receipt verification. Protect your business from fraud with deep-scan technology.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "G-Catch",
+    startupImage: [],
+  },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
+};
+
+export const viewport = {
+  themeColor: "#0066ff",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({ children }) {
@@ -46,6 +68,21 @@ export default function RootLayout({ children }) {
             {children}
           </div>
         </AuthProvider>
+
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                  navigator.serviceWorker.register('/sw.js').then(
+                    () => console.log('SW registered'),
+                    (err) => console.log('SW registration failed:', err)
+                  );
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );
