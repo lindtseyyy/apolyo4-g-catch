@@ -1265,6 +1265,9 @@ def analyze_name(image, output_path=None):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     boxes = sorted(
@@ -1272,6 +1275,14 @@ def analyze_name(image, output_path=None):
          for x, y, w, h in [cv2.boundingRect(c)] if h > 3 and w > 2],
         key=lambda b: b[0]
     )
+
+    if len(boxes) < 4:
+        tree_contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        boxes = sorted(
+            [(x, y, w, h) for c in tree_contours
+             for x, y, w, h in [cv2.boundingRect(c)] if h > 2 and w > 1],
+            key=lambda b: b[0]
+        )
 
     proof_img = img.copy()
 
@@ -1287,19 +1298,53 @@ def analyze_name(image, output_path=None):
     widths = np.array([b[2] for b in boxes], dtype=float)
     baselines = np.array([b[1] + b[3] for b in boxes], dtype=float)
 
-    # Classify by MAX height (not median — bullets skew median down)
-    max_h = float(np.max(heights))
+    # --- Natural-break clustering on heights ---
+    # Letters are ~29-37 px, bullets ~10 px, periods ~7 px.
+    # The largest gap between sorted heights splits letters from non-letters.
+    # A second gap (among the non-letter heights) splits bullets from periods.
+    sorted_h = np.sort(heights)
+    gaps = np.diff(sorted_h)
 
-    # Periods: < 25 % of max (~7 px vs ~30 px letters)
-    is_period = heights < max_h * 0.25
-    # Bullets: 25-55 % of max (~10 px vs ~30 px letters)
-    is_bullet = (heights >= max_h * 0.25) & (heights < max_h * 0.55)
-    # Large visible letters: > 55 % of max
-    is_letter = heights >= max_h * 0.55
+    if len(gaps) >= 1 and np.max(gaps) >= 4:
+        split1 = int(np.argmax(gaps))
+        letter_cutoff = sorted_h[split1] + gaps[split1] / 2
+
+        below = gaps[:split1]
+        if len(below) >= 1 and np.max(below) >= 1.5:
+            split2 = int(np.argmax(below))
+            bullet_cutoff = sorted_h[split2] + below[split2] / 2
+        else:
+            bullet_cutoff = letter_cutoff * 0.45
+
+        is_letter_h = heights >= letter_cutoff
+        is_bullet_h = (heights >= bullet_cutoff) & ~is_letter_h
+        is_period_h = heights < bullet_cutoff
+    else:
+        # No clear break — all contours are likely the same class
+        is_letter_h = np.ones(len(heights), dtype=bool)
+        is_bullet_h = np.zeros(len(heights), dtype=bool)
+        is_period_h = np.zeros(len(heights), dtype=bool)
+
+    # --- Aspect-ratio refinement ---
+    # Capital letters are taller than wide (w/h < 1.0). Bullets are round
+    # (w/h ≈ 1.0). A noise blob with tall height but square ratio gets
+    # reclassified as a bullet so it doesn't skew the letter statistics.
+    ratios = widths / np.maximum(heights, 1)
+    letter_ratio_ok = ratios < 1.0
+
+    is_letter = is_letter_h & letter_ratio_ok
+    is_bullet = is_bullet_h | (is_letter_h & ~letter_ratio_ok)
+    is_period = is_period_h
+
+    # Reverse check: bullets with letter-like aspect ratio (w/h < 0.85)
+    # are suspicious — could be pasted text that fell into the bullet cluster.
+    bullet_ratios = ratios
+    bullet_looks_like_letter = is_bullet & (bullet_ratios < 0.85)
 
     letter_indices = np.where(is_letter)[0]
     bullet_indices = np.where(is_bullet)[0]
     period_indices = np.where(is_period)[0]
+    suspicious_bullet_indices = np.where(bullet_looks_like_letter)[0]
 
     if len(letter_indices) < 2:
         return {
@@ -1317,6 +1362,16 @@ def analyze_name(image, output_path=None):
 
     flags = 0
     reasons = []
+
+    # --- Suspicious bullets ---
+    # Bullets with letter-like aspect ratio may be pasted text that fell
+    # into the wrong height cluster.
+    if len(suspicious_bullet_indices) > 0:
+        flags += 1
+        reasons.append(
+            f"Name suspicious masking: {len(suspicious_bullet_indices)} "
+            f"bullet(s) with letter-like proportions"
+        )
 
     # --- Baseline (calibrated: within-word ≤ 3 px, across-word ≤ 6 px) ---
     median_letter_base = np.median(letter_bases)
@@ -1344,14 +1399,14 @@ def analyze_name(image, output_path=None):
     cv2.line(proof_img, (min(all_letter_xs) - 3, base_y),
              (max(all_letter_xs) + 3, base_y), (0, 255, 255), 1)
 
-    # --- Height (calibrated: large letters within 25 % of median) ---
+    # --- Height (calibrated: large letters within 20 % of median) ---
     h_devs = np.abs(letter_heights - median_letter_h) / max(median_letter_h, 1)
-    h_outliers = np.where(h_devs > 0.25)[0]
+    h_outliers = np.where(h_devs > 0.20)[0]
     if len(h_outliers) > 0:
         flags += 1
         reasons.append(
             f"Name height anomaly: {len(h_outliers)} letter(s) "
-            f">25% from median ({median_letter_h:.0f}px)"
+            f">20% from median ({median_letter_h:.0f}px)"
         )
 
     # --- Width (calibrated: letters vary up to 70 %, threshold at 75 %) ---
@@ -1405,12 +1460,13 @@ def analyze_name(image, output_path=None):
         cv2.rectangle(proof_img, (x, y), (x + w, y + h), color, 1)
 
     # --- Verdict ---
-    verdict = "FAIL: FAKE" if flags >= 2 else "PASS: REAL"
+    verdict = "FAIL: FAKE" if flags >= 1 else "PASS: REAL"
 
     n_bullets = len(bullet_indices)
+    n_suspicious = len(suspicious_bullet_indices)
     color = (0, 0, 255) if "FAIL" in verdict else (0, 255, 0)
     fs = max(0.35, proof_img.shape[0] / 120)
-    cv2.putText(proof_img, f"Name: {verdict} ({flags}f, {n_bullets}b)",
+    cv2.putText(proof_img, f"Name: {verdict} ({flags}f, {n_bullets}b, {n_suspicious}s)",
                 (5, max(20, int(proof_img.shape[0] * 0.9))),
                 cv2.FONT_HERSHEY_SIMPLEX, fs, color, 2)
 
