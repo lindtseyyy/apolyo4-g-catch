@@ -175,7 +175,7 @@ function HomeContent() {
                 <div className="flex flex-col lg:flex-row gap-6">
                   {/* ===== LEFT COLUMN ===== */}
                   <div className="lg:w-2/5 flex-shrink-0 space-y-5">
-                    <ImagePreview image={image} isScanning={isScanning} />
+                    <ImagePreview image={image} isScanning={isScanning} scanProgress={scanProgress} />
                     {imageFile && (
                       <p className="text-sm text-[#8899b8]/60 text-center truncate">{imageFile.name}</p>
                     )}
@@ -228,7 +228,7 @@ function HomeContent() {
                   <div className="lg:w-3/5 flex-1 min-h-0">
                     {/* Idle placeholder */}
                     {!result && !isScanning && (
-                      <div className="h-full min-h-[300px] flex flex-col items-center justify-center rounded-2xl border border-dashed border-[rgba(0,102,255,0.12)] bg-[rgba(0,102,255,0.02)] p-8 text-center">
+                      <div className="h-full min-h-[300px] hidden lg:flex flex-col items-center justify-center rounded-2xl border border-dashed border-[rgba(0,102,255,0.12)] bg-[rgba(0,102,255,0.02)] p-8 text-center">
                         <ScanLine className="w-12 h-12 text-[#8899b8]/40 mb-4" />
                         <p className="text-[#8899b8] font-semibold">Awaiting Analysis</p>
                         <p className="text-xs text-[#8899b8]/60 mt-1 max-w-xs">
@@ -237,9 +237,9 @@ function HomeContent() {
                       </div>
                     )}
 
-                    {/* Scanning placeholder */}
+                    {/* Scanning placeholder — hidden on mobile, overlay on image instead */}
                     {isScanning && !result && (
-                      <div className="h-full min-h-[300px] flex flex-col items-center justify-center rounded-2xl border border-[rgba(0,212,255,0.12)] bg-[rgba(0,212,255,0.02)] p-8 text-center">
+                      <div className="h-full min-h-[300px] hidden lg:flex flex-col items-center justify-center rounded-2xl border border-[rgba(0,212,255,0.12)] bg-[rgba(0,212,255,0.02)] p-8 text-center">
                         <FileSearch className="w-12 h-12 text-[#00d4ff] mb-4 animate-pulse" />
                         <p className="text-[#00d4ff] font-mono text-xs font-bold tracking-[0.2em] uppercase animate-pulse">
                           Analyzing Receipt
