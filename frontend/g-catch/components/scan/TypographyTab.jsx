@@ -8,11 +8,16 @@ export default function TypographyTab({ analysisResult }) {
     return <p className="text-sm text-[#8899b8]">No typography analysis data available.</p>;
   }
 
-  const rows = Object.entries(fields).map(([fieldName, fieldData]) => {
-    const isForged = fieldData.verdict === 'forged' || analysisResult.forged_fields?.includes(fieldName);
-    const isInconclusive = fieldData.verdict === 'INCONCLUSIVE';
-    return { fieldName, fieldData, isForged, isInconclusive };
-  });
+  const rows = Object.entries(fields)
+    .map(([fieldName, fieldData]) => {
+      const isForged = fieldData.verdict === 'forged' || analysisResult.forged_fields?.includes(fieldName);
+      const isInconclusive = fieldData.verdict === 'INCONCLUSIVE';
+      return { fieldName, fieldData, isForged, isInconclusive };
+    })
+    .sort((a, b) => {
+      const order = (r) => (r.isForged ? 0 : r.isInconclusive ? 1 : 2);
+      return order(a) - order(b);
+    });
 
   return (
     <div className="space-y-4">
