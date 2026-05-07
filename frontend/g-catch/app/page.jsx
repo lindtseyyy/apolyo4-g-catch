@@ -271,6 +271,7 @@ function HomeContent() {
                         <VerdictBanner
                           result={result}
                           forgedFieldCount={analysisResult?.forged_fields?.length || 0}
+                          refExists={refExists}
                         />
                         <MetricsGrid analysisResult={analysisResult} refExists={refExists} />
                         <p className="text-[11px] text-[#8899b8]/60 text-center leading-relaxed px-2 italic">
