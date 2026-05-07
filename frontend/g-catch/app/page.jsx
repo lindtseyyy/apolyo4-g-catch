@@ -231,7 +231,7 @@ function HomeContent() {
                         <motion.button
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          onClick={() => fileInputRef.current?.click()}
+                          onClick={handleReset}
                           className="w-full text-sm font-semibold text-[#8899b8] hover:text-[#c8d4e8] bg-[rgba(0,102,255,0.04)] hover:bg-[rgba(0,102,255,0.08)] border border-[rgba(0,102,255,0.1)] hover:border-[rgba(0,102,255,0.2)] rounded-xl py-2.5 transition-all duration-200 cursor-pointer"
                         >
                           Reselect Image
