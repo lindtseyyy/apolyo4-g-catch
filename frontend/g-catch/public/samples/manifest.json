@@ -1,0 +1,23 @@
+[
+  { "category": "authentic", "label": "Authentic Receipt 1", "path": "/samples/authentic/Authentic Receipt 1.jpg" },
+  { "category": "authentic", "label": "Authentic Receipt 2", "path": "/samples/authentic/Authentic Receipt 2.jpg" },
+  { "category": "authentic", "label": "Authentic Receipt 3", "path": "/samples/authentic/Authentic Receipt 3.jpg" },
+  { "category": "authentic", "label": "Authentic Receipt 4", "path": "/samples/authentic/Authentic Receipt 4.jpg" },
+  { "category": "authentic", "label": "Authentic Receipt 5", "path": "/samples/authentic/Authentic Receipt 5.jpg" },
+  { "category": "edited", "label": "Edited Receipt 1", "path": "/samples/edited/Edited Receipt 1.jpg" },
+  { "category": "edited", "label": "Edited Receipt 2", "path": "/samples/edited/Edited Receipt 2.jpg" },
+  { "category": "edited", "label": "Edited Receipt 3", "path": "/samples/edited/Edited Receipt 3.jpg" },
+  { "category": "edited", "label": "Edited Receipt 4", "path": "/samples/edited/Edited Receipt 4.jpg" },
+  { "category": "edited", "label": "Edited Receipt 5", "path": "/samples/edited/Edited Receipt 5.jpg" },
+  { "category": "edited", "label": "Edited Receipt 6", "path": "/samples/edited/Edited Receipt 6.jpg" },
+  { "category": "edited", "label": "Edited Receipt 7", "path": "/samples/edited/Edited Receipt 7.jpg" },
+  { "category": "edited", "label": "Edited Receipt 8", "path": "/samples/edited/Edited Receipt 8.jpg" },
+  { "category": "ai-generated", "label": "ChatGPT Receipt 1", "path": "/samples/ai-generated/AI ChatGPT Receipt 1.jpeg" },
+  { "category": "ai-generated", "label": "ChatGPT Receipt 2", "path": "/samples/ai-generated/AI ChatGPT Receipt 2.jpeg" },
+  { "category": "ai-generated", "label": "Gemini Receipt 1", "path": "/samples/ai-generated/AI Gemini Receipt 1.jpeg" },
+  { "category": "ai-generated", "label": "Gemini Receipt 2", "path": "/samples/ai-generated/AI Gemini Receipt 2.jpeg" },
+  { "category": "ai-generated", "label": "Grok Receipt 1", "path": "/samples/ai-generated/AI Grok Receipt 1.jpg" },
+  { "category": "ai-generated", "label": "Grok Receipt 2", "path": "/samples/ai-generated/AI Grok Receipt 2.jpg" },
+  { "category": "ai-generated", "label": "Qwen Receipt 1", "path": "/samples/ai-generated/AI Qwen Receipt 1.jpg" },
+  { "category": "ai-generated", "label": "Qwen Receipt 2", "path": "/samples/ai-generated/AI Qwen Receipt 2.jpg" }
+]

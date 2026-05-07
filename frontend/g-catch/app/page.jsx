@@ -15,6 +15,7 @@ import TabBar from '@/components/scan/TabBar';
 import ElaTab from '@/components/scan/ElaTab';
 import TypographyTab from '@/components/scan/TypographyTab';
 import ReferenceTab from '@/components/scan/ReferenceTab';
+import SampleSelector from '@/components/scan/SampleSelector';
 import ConfirmModal from '@/components/scan/ConfirmModal';
 
 export default function Home() {
@@ -122,6 +123,14 @@ function HomeContent() {
     }
   };
 
+  const handleSampleSelect = (file) => {
+    setImage(URL.createObjectURL(file));
+    setImageFile(file);
+    setResult(null);
+    setAnalysisResult(null);
+    setScanError(null);
+  };
+
   const handleConfirm = async () => {
     try {
       const cleanedRef = referenceNumber.replace(/\s+/g, '');
@@ -176,7 +185,10 @@ function HomeContent() {
 
           <AnimatePresence mode="wait">
             {!image ? (
-              <UploadZone onImageUpload={handleImageUpload} />
+              <div>
+                <UploadZone onImageUpload={handleImageUpload} />
+                <SampleSelector onSampleSelect={handleSampleSelect} />
+              </div>
             ) : (
               <motion.div
                 key="results"
