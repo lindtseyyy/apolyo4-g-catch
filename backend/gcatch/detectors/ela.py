@@ -9,23 +9,30 @@ DEFAULT_PATCH_SIZE = 16
 def run_ela(image_path, output_path, quality=90):
     """Run Error Level Analysis on an image.
 
-    Saves the image at a known JPEG quality, reloads it, and computes the
-    absolute difference. The result is an enhanced error-level map.
+    Encodes the image at a known JPEG quality in memory, decodes it back,
+    and computes the absolute difference. The result is an enhanced
+    error-level map.
+
+    Uses an in-memory buffer instead of a temp file so it works on
+    read-only filesystems (e.g. Vercel serverless).
     """
     original = cv2.imread(image_path)
     if original is None:
         raise ValueError(f"Could not read image: {image_path}")
 
-    temp_filename = 'temp_compression.jpg'
-    cv2.imwrite(temp_filename, original, [cv2.IMWRITE_JPEG_QUALITY, 95])
-    compressed = cv2.imread(temp_filename)
+    # In-memory JPEG round-trip (no temp file needed)
+    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 95]
+    success, buf = cv2.imencode('.jpg', original, encode_param)
+    if not success:
+        raise ValueError("JPEG encoding failed during ELA")
+    compressed = cv2.imdecode(buf, cv2.IMREAD_COLOR)
+
     diff = cv2.absdiff(original, compressed)
     gray_diff = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
     enhanced_map = cv2.convertScaleAbs(gray_diff, alpha=8.0)
-    cv2.imwrite(output_path, enhanced_map)
 
-    if os.path.exists(temp_filename):
-        os.remove(temp_filename)
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    cv2.imwrite(output_path, enhanced_map)
 
     return True
 
