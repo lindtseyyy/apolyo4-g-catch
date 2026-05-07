@@ -32,7 +32,7 @@ export default function UploadZone({ onImageUpload }) {
         <p className="text-[10px] text-[#8899b8]/60 mt-3">Supports JPG, PNG, WEBP</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 mt-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
         {STATS.map((item, i) => (
           <div key={i} className="bg-[rgba(0,102,255,0.04)] border border-[rgba(0,102,255,0.1)] rounded-xl p-3 text-center">
             <item.icon className="w-4 h-4 text-[#0066ff] mx-auto mb-1.5" />
