@@ -6,8 +6,13 @@ from typing import Optional
 
 import cv2
 
-UPLOAD_DIR = Path("uploads")
-OUTPUT_DIR = Path("output")
+# Vercel serverless has a read-only filesystem; only /tmp is writable
+if os.environ.get("VERCEL"):
+    UPLOAD_DIR = Path("/tmp/uploads")
+    OUTPUT_DIR = Path("/tmp/output")
+else:
+    UPLOAD_DIR = Path("uploads")
+    OUTPUT_DIR = Path("output")
 
 ALLOWED_CONTENT_TYPES = {
     "image/jpeg",
