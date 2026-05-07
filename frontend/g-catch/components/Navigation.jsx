@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
-import { LogOut, LogIn, UserPlus, Menu, X, Shield, Zap } from 'lucide-react';
+import { LogOut, LogIn, UserPlus, Menu, X, Zap } from 'lucide-react';
 import { useState } from 'react';
 
 export default function Navigation() {
@@ -25,9 +25,11 @@ export default function Navigation() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
             <div className="relative">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0066ff] to-[#00a8ff] flex items-center justify-center shadow-lg shadow-[#0066ff]/25 group-hover:shadow-[#0066ff]/40 transition-all duration-300">
-                <Shield className="w-5 h-5 text-white" />
-              </div>
+              <img
+                src="/g-catch-logo.png"
+                alt="G-Catch"
+                className="w-9 h-9 object-contain"
+              />
               <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-[#00d4ff] rounded-full border-2 border-[#0a1020] animate-pulse" />
             </div>
             <div className="flex flex-col leading-none">

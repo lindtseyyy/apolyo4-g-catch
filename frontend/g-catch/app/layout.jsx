@@ -24,8 +24,8 @@ export const metadata = {
     startupImage: [],
   },
   icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg",
+    icon: "/g-catch-logo.png",
+    apple: "/g-catch-logo.png",
   },
   other: {
     "mobile-web-app-capable": "yes",
