@@ -24,13 +24,13 @@ export default function ElaTab({ analysisResult, result, refExists, referenceNum
       {analysisResult?.proof_image_base64 && (
         <div className="p-4 bg-[rgba(0,102,255,0.03)] rounded-xl border border-[rgba(0,102,255,0.08)] space-y-3">
           <p className="text-sm font-semibold text-[#c8d4e8]">Error Level Analysis Overlay</p>
-          <div className="flex gap-4 items-center">
+          <div className="flex flex-col sm:flex-row gap-4 items-start">
             <img
               src={analysisResult.proof_image_base64}
               alt="Forensic proof"
-              className="w-[220px] rounded-xl border border-[rgba(0,102,255,0.15)]"
+              className="w-full sm:w-[220px] rounded-xl border border-[rgba(0,102,255,0.15)]"
             />
-            <p className="text-xs text-[#8899b8]/70 leading-relaxed">
+            <p className="text-xs text-[#ff3d71] leading-relaxed">
               Red highlights reveal unnatural noise patterns. Concentrated red on blank areas strongly suggests the receipt was AI-generated.
             </p>
           </div>
