@@ -6,7 +6,7 @@ import { FlaskConical, CheckCircle2, AlertTriangle, Bot, ChevronDown, ImageIcon,
 
 const CATEGORY_META = {
   authentic: { label: 'Authentic Receipts', icon: CheckCircle2, color: 'text-green-400', bg: 'bg-green-400/8', border: 'border-green-400/20' },
-  edited: { label: 'Edited / Forged', icon: AlertTriangle, color: 'text-yellow-400', bg: 'bg-yellow-400/8', border: 'border-yellow-400/20' },
+  edited: { label: 'Manually Edited / Forged', icon: AlertTriangle, color: 'text-yellow-400', bg: 'bg-yellow-400/8', border: 'border-yellow-400/20' },
   'ai-generated': { label: 'AI-Generated', icon: Bot, color: 'text-purple-400', bg: 'bg-purple-400/8', border: 'border-purple-400/20' },
 };
 
