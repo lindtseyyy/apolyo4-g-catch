@@ -1,14 +1,11 @@
 {
-  "builds": [
-    {
-      "src": "server/main.py",
-      "use": "@vercel/python"
+  "functions": {
+    "server/main.py": {
+      "memory": 1024,
+      "maxDuration": 30
     }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "server/main.py"
-    }
+  },
+  "rewrites": [
+    { "source": "/(.*)", "destination": "server/main.py" }
   ]
 }
