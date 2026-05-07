@@ -169,7 +169,7 @@ function ProfileContent({ user, isLoggingOut, handleLogout, copyUid, copied }) {
             <div className="flex items-start gap-3">
               <Fingerprint className="w-4 h-4 text-[#0066ff] mt-0.5 flex-shrink-0" />
               <p className="text-xs text-[#8899b8] leading-relaxed">
-                Your account is secured with Firebase Authentication. All verification scans are processed locally and no receipt data is stored on our servers.
+                All verification scans are processed locally and no receipt data is stored on our servers.
               </p>
             </div>
           </div>
