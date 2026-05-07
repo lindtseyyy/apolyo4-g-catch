@@ -115,7 +115,7 @@ export default function Navigation() {
             animate={{ opacity: 1, y: 0, height: 'auto' }}
             exit={{ opacity: 0, y: -10, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="md:hidden glass-strong border-b border-[rgba(0,102,255,0.12)] overflow-hidden"
+            className="md:hidden glass-strong !bg-[#0a1020] border-b border-[rgba(0,102,255,0.12)] overflow-hidden"
           >
             <div className="p-4 space-y-2">
               {loading ? (
