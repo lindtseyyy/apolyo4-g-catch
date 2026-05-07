@@ -379,6 +379,9 @@ def analyze_amount_typography(image, output_path=None):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     bounding_boxes = sorted(
@@ -386,6 +389,17 @@ def analyze_amount_typography(image, output_path=None):
          for x, y, w, h in [cv2.boundingRect(c)] if h > 15 and w > 5],
         key=lambda b: b[0]
     )
+
+    if not bounding_boxes:
+        # Fallback: try tree contours with looser size thresholds.
+        # The ₱ symbol can fragment into inner contours that RETR_EXTERNAL
+        # discards, even after morphological closing.
+        tree_contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        bounding_boxes = sorted(
+            [(x, y, w, h) for c in tree_contours
+             for x, y, w, h in [cv2.boundingRect(c)] if h > 8 and w > 3],
+            key=lambda b: b[0]
+        )
 
     if not bounding_boxes:
         return {
@@ -454,6 +468,9 @@ def analyze_digit_typography(image, output_path=None):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     bounding_boxes = sorted(
@@ -462,7 +479,15 @@ def analyze_digit_typography(image, output_path=None):
         key=lambda b: b[0]
     )
 
-    if len(bounding_boxes) < 2:
+    if not bounding_boxes:
+        tree_contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        bounding_boxes = sorted(
+            [(x, y, w, h) for c in tree_contours
+             for x, y, w, h in [cv2.boundingRect(c)] if h > 8 and w > 3],
+            key=lambda b: b[0]
+        )
+
+    if not bounding_boxes:
         return {
             'verdict': 'INCONCLUSIVE',
             'score': 0,
