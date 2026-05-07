@@ -134,6 +134,16 @@ function HomeContent() {
     }
   };
 
+  const handleReferenceCheck = async (ref) => {
+    setReferenceNumber(ref);
+    try {
+      const exists = await checkReferenceExists(ref);
+      setRefExists(exists);
+    } catch (err) {
+      console.error('Failed to check reference:', err);
+    }
+  };
+
   const handleReset = () => {
     setImage(null);
     setImageFile(null);
@@ -306,6 +316,7 @@ function HomeContent() {
                                   result={result}
                                   confirmed={confirmed}
                                   onOpenModal={() => setShowModal(true)}
+                                  onReferenceCheck={handleReferenceCheck}
                                 />
                               )}
                             </motion.div>
