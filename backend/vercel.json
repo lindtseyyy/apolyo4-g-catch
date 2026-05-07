@@ -1,20 +1,14 @@
 {
   "builds": [
     {
-      "src": "server/main.py",
+      "src": "index.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "server/main.py"
+      "dest": "index.py"
     }
-  ],
-  "functions": {
-    "server/main.py": {
-      "memory": 1024,
-      "maxDuration": 30
-    }
-  }
+  ]
 }
