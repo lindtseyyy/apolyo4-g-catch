@@ -11,7 +11,6 @@
   { "category": "edited", "label": "Edited Receipt 5", "path": "/samples/edited/Edited Receipt 5.jpg" },
   { "category": "edited", "label": "Edited Receipt 6", "path": "/samples/edited/Edited Receipt 6.jpg" },
   { "category": "edited", "label": "Edited Receipt 7", "path": "/samples/edited/Edited Receipt 7.jpg" },
-  { "category": "edited", "label": "Edited Receipt 8", "path": "/samples/edited/Edited Receipt 8.jpg" },
   { "category": "ai-generated", "label": "ChatGPT Receipt 1", "path": "/samples/ai-generated/AI ChatGPT Receipt 1.jpeg" },
   { "category": "ai-generated", "label": "ChatGPT Receipt 2", "path": "/samples/ai-generated/AI ChatGPT Receipt 2.jpeg" },
   { "category": "ai-generated", "label": "Gemini Receipt 1", "path": "/samples/ai-generated/AI Gemini Receipt 1.jpeg" },
