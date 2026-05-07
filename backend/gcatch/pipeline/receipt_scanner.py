@@ -11,7 +11,6 @@ import cv2
 from gcatch.detectors.typography import (
     analyze_amount_typography,
     analyze_date,
-    analyze_digit_typography,
     analyze_name,
     analyze_phone_number,
     analyze_reference_number,
@@ -23,7 +22,7 @@ from gcatch.pipeline.receipt_cropper import extract_all_field_crops
 FIELD_CHECKERS = {
     "name": analyze_name,
     "phone_number": analyze_phone_number,
-    "amount": analyze_digit_typography,
+    "amount": analyze_amount_typography,
     "total_amount": analyze_amount_typography,
     "reference_number": analyze_reference_number,
     "date": analyze_date,
